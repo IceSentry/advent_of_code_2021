@@ -8,13 +8,13 @@ pub fn parse(input: &str) -> Data {
 
 #[allow(clippy::ptr_arg)]
 pub fn part_1(input: &Data) -> usize {
-    let mut last = 0;
     let mut count = 0;
-    for &value in input.iter().skip(1) {
-        if value > last {
-            count += 1;
+    for values in input.windows(2) {
+        if let [a, b] = values {
+            if b > a {
+                count += 1;
+            }
         }
-        last = value;
     }
     count
 }
@@ -25,12 +25,12 @@ pub fn part_1_iterator(input: &Data) -> usize {
 
 #[allow(clippy::ptr_arg)]
 pub fn part_2(input: &Data) -> usize {
-    let mut head = 0;
-    let mut tail = 0;
+    let mut head = i32::MAX;
+    let mut tail;
     let mut count = 0;
-    for (i, values) in input.windows(3).enumerate() {
+    for values in input.windows(3) {
         tail = values.iter().sum();
-        if i > 0 && tail > head {
+        if tail > head {
             count += 1;
         }
         head = tail;

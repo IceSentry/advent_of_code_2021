@@ -1,3 +1,5 @@
+use itertools::Itertools;
+
 type Data = Vec<i32>;
 
 pub fn parse(input: &str) -> Data {
@@ -17,6 +19,10 @@ pub fn part_1(input: &Data) -> usize {
     count
 }
 
+pub fn part_1_iterator(input: &Data) -> usize {
+    input.iter().tuple_windows().filter(|(a, b)| b > a).count()
+}
+
 #[allow(clippy::ptr_arg)]
 pub fn part_2(input: &Data) -> usize {
     let mut head = 0;
@@ -30,6 +36,15 @@ pub fn part_2(input: &Data) -> usize {
         head = tail;
     }
     count
+}
+
+pub fn part_2_iterator(input: &Data) -> usize {
+    input
+        .windows(3)
+        .map(|x| x.iter().sum::<i32>())
+        .tuple_windows()
+        .filter(|(a, b)| b > a)
+        .count()
 }
 
 #[cfg(test)]

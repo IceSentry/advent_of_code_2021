@@ -6,34 +6,32 @@ pub fn parse(input: &str) -> Data {
     input.lines().map(|l| l.parse().unwrap()).collect()
 }
 
-#[allow(clippy::ptr_arg)]
 pub fn part_1(input: &Data) -> usize {
     let mut count = 0;
     for values in input.windows(2) {
-        if let [a, b] = values {
-            if b > a {
-                count += 1;
-            }
+        if values[0] < values[1] {
+            count += 1;
         }
     }
     count
 }
 
 pub fn part_1_iterator(input: &Data) -> usize {
-    input.iter().tuple_windows().filter(|(a, b)| b > a).count()
+    input
+        .windows(2)
+        .filter(|values| values[0] < values[1])
+        .count()
 }
 
-#[allow(clippy::ptr_arg)]
 pub fn part_2(input: &Data) -> usize {
-    let mut head = i32::MAX;
-    let mut tail;
+    let mut last = i32::MAX;
     let mut count = 0;
     for values in input.windows(3) {
-        tail = values.iter().sum();
-        if tail > head {
+        let sum = values.iter().sum();
+        if sum > last {
             count += 1;
         }
-        head = tail;
+        last = sum;
     }
     count
 }
@@ -44,6 +42,15 @@ pub fn part_2_iterator(input: &Data) -> usize {
         .map(|x| x.iter().sum::<i32>())
         .tuple_windows()
         .filter(|(a, b)| b > a)
+        .count()
+}
+
+// (b + c) can be simplified
+// a + (b + c) < (b + c) + d
+pub fn part_2_iterator_2(input: &Data) -> usize {
+    input
+        .windows(4)
+        .filter(|values| values[0] < values[3])
         .count()
 }
 

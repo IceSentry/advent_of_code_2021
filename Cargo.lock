@@ -11,6 +11,8 @@ dependencies = [
  "itertools",
  "rayon",
  "regex",
+ "serde",
+ "serde_derive",
  "serde_scan",
 ]
 

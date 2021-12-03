@@ -1,47 +1,51 @@
-type Data = Vec<Vec<char>>;
+type Data = Vec<String>;
 
 pub fn parse(input: &str) -> Data {
-    input.lines().map(|l| l.chars().collect()).collect()
+    input.lines().map(|l| l.to_string()).collect()
+}
+
+fn most_common_bit(input: &Data, i: usize) -> usize {
+    let count_0 = input
+        .iter()
+        .filter(|x| x.as_bytes().get(i) == Some(&b'0'))
+        .count();
+    let count_1 = input.len() - count_0;
+    if count_0 > count_1 {
+        0
+    } else {
+        1
+    }
 }
 
 pub fn part_1(input: &Data) -> usize {
-    let len = input.first().unwrap().len();
+    let len = input[0].len();
     let mut gamma = 0;
     let mut epsilon = 0;
     for i in 0..len {
-        let count_0 = input.iter().filter(|x| x[i] == '0').count();
-        let count_1 = input.len() - count_0;
-        if count_0 > count_1 {
-            // most common bit is 0
-            // least common bit is 1
-            epsilon += 1 << (len - 1 - i);
+        if most_common_bit(input, i) == 0 {
+            epsilon |= 1 << (len - 1 - i);
         } else {
-            // most common bit is 1
-            // least common bit is 0
-            gamma += 1 << (len - 1 - i);
+            gamma |= 1 << (len - 1 - i);
         }
     }
     gamma * epsilon
 }
 
 pub fn part_2(input: &Data) -> usize {
-    let oxygen = find(&mut input.clone(), '0', '1');
-    let co2 = find(&mut input.clone(), '1', '0');
+    let oxygen = find(&mut input.clone(), b'0', b'1');
+    let co2 = find(&mut input.clone(), b'1', b'0');
     oxygen * co2
 }
 
-fn find(input: &mut Data, a: char, b: char) -> usize {
-    let len = input.first().unwrap().len();
-    for i in 0..len {
-        let count_0 = input.iter().filter(|x| x[i] == '0').count();
-        let count_1 = input.len() - count_0;
-        if count_0 > count_1 {
-            input.retain(|x| x[i] == a)
+fn find(input: &mut Data, a: u8, b: u8) -> usize {
+    for i in 0..input[0].len() {
+        if most_common_bit(input, i) == 0 {
+            input.retain(|x| x.as_bytes().get(i) == Some(&a))
         } else {
-            input.retain(|x| x[i] == b)
+            input.retain(|x| x.as_bytes().get(i) == Some(&b))
         }
         if input.len() == 1 {
-            return usize::from_str_radix(&String::from_iter(input[0].clone()), 2).unwrap();
+            return usize::from_str_radix(&input[0], 2).unwrap();
         }
     }
     unreachable!()
@@ -78,5 +82,18 @@ mod tests {
         let input = super::parse(INPUTS);
         let result = super::part_2(&input);
         assert_eq!(result, 230);
+    }
+
+    #[test]
+    pub fn most_common_bit() {
+        let input = vec![
+            "00000".into(),
+            "00000".into(),
+            "00000".into(),
+            "00000".into(),
+        ];
+        let result = super::most_common_bit(&input, 0);
+        assert_eq!(result, 0);
+        assert_eq!("00000".to_string().as_bytes().get(0), Some(&b'0'));
     }
 }

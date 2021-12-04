@@ -4,7 +4,7 @@ type Data = (Vec<usize>, Vec<Board>);
 
 #[derive(Clone)]
 pub struct Board {
-    data: Vec<Vec<(usize, bool)>>,
+    data: [[(usize, bool); 5]; 5],
     is_win: bool,
 }
 
@@ -27,7 +27,7 @@ impl std::fmt::Debug for Board {
 impl Board {
     fn new() -> Self {
         Self {
-            data: vec![vec![]; 5],
+            data: [[(0, false); 5]; 5],
             is_win: false,
         }
     }
@@ -90,18 +90,15 @@ pub fn parse(input: &str) -> Data {
 
     let mut row = 0;
     let mut boards = vec![];
-    let mut board_index = 0;
     for line in lines {
-        if line.trim().is_empty() {
+        if line.is_empty() {
             boards.push(Board::new());
             row = 0;
-            board_index += 1;
             continue;
         }
-        boards[board_index - 1].data[row] = line
-            .split_ascii_whitespace()
-            .map(|x| (x.parse().unwrap(), false))
-            .collect();
+        for (i, x) in line.split_ascii_whitespace().enumerate() {
+            boards.last_mut().unwrap().data[row][i].0 = x.parse().unwrap();
+        }
         row += 1;
     }
 
@@ -116,8 +113,8 @@ pub fn part_1(input: &Data) -> usize {
                 board.set(found_pos);
                 if board.is_win(found_pos) {
                     let sum = board.get_unset_sum();
-                    println!("Bingo! {} {}", n, sum);
-                    println!("{:?}", board);
+                    // println!("Bingo! {} {}", n, sum);
+                    // println!("{:?}", board);
                     return sum * n;
                 }
             }
@@ -136,10 +133,9 @@ pub fn part_2(input: &Data) -> usize {
             }
         }
         if boards.len() == 1 && boards.iter().filter(|b| b.is_win).count() == 1 {
-            let board = &boards[0];
             let sum = boards[0].get_unset_sum();
-            println!("Last bingo! {} {}", n, sum);
-            println!("{:?}", board);
+            // println!("Last bingo! {} {}", n, sum);
+            // println!("{:?}", boards[0]);
             return sum * n;
         } else {
             boards.retain(|b| !b.is_win);

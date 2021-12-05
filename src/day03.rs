@@ -39,16 +39,14 @@ pub fn part_2(input: &Data) -> usize {
 
 fn find(input: &mut Data, a: u8, b: u8) -> usize {
     for i in 0..input[0].len() {
-        if most_common_bit(input, i) == 0 {
-            input.retain(|x| x.as_bytes().get(i) == Some(&a))
-        } else {
-            input.retain(|x| x.as_bytes().get(i) == Some(&b))
-        }
+        let most_common_bit = most_common_bit(input, i);
+        let bit = if most_common_bit == 0 { a } else { b };
+        input.retain(|x| x.as_bytes().get(i) == Some(&bit));
         if input.len() == 1 {
             return usize::from_str_radix(&input[0], 2).unwrap();
         }
     }
-    unreachable!()
+    unreachable!("Failed to find a value")
 }
 
 #[cfg(test)]

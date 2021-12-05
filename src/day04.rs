@@ -31,8 +31,8 @@ impl Board {
             .split('\n')
             .flat_map(|row| {
                 row.split_whitespace()
-                    .map(|x| (x.parse().unwrap(), false))
-                    .collect::<Vec<(usize, bool)>>()
+                    .map(|x| x.parse().unwrap())
+                    .map(|x| (x, false))
             })
             .collect::<Vec<_>>();
         Self {
@@ -46,48 +46,43 @@ impl Board {
     }
 
     fn mark(&mut self, value: usize) -> Option<(usize, usize)> {
-        if let Some((x, y)) = self
-            .data
-            .iter()
-            .position(|x| x.0 == value)
-            .map(|pos| (pos % 5, pos / 5))
-        {
-            self.data[x + y * 5].1 = true;
-            Some((x, y))
-        } else {
-            None
+        // using iter_mut is apparently much slower, so it's easier to just mutate with the index
+        for (i, (cell_value, _)) in self.data.iter().enumerate() {
+            if *cell_value == value {
+                self.data[i].1 = true;
+                return Some((i % 5, i / 5));
+            }
         }
+        None
     }
 
     fn check_bingo(&mut self, x: usize, y: usize) -> bool {
-        if self.is_bingo {
-            return true;
-        }
-        let mut acc_y = 0;
-        let mut acc_x = 0;
-        for i in 0..5 {
-            if self.get(x, i).1 {
-                acc_y += 1;
+        if !self.is_bingo {
+            let mut result_x = true;
+            for i in 0..5 {
+                if !self.get(i, y).1 {
+                    result_x = false;
+                    break;
+                }
             }
-            if self.get(i, y).1 {
-                acc_x += 1;
+            let mut result_y = true;
+            for i in 0..5 {
+                if !self.get(x, i).1 {
+                    result_y = false;
+                    break;
+                }
             }
+            self.is_bingo = result_x || result_y;
         }
-        self.is_bingo = acc_x >= 5 || acc_y >= 5;
         self.is_bingo
     }
 
     fn get_unmarked_sum(&self) -> usize {
-        let mut sum = 0;
-        for y in 0..5 {
-            for x in 0..5 {
-                let cell = self.get(x, y);
-                if !cell.1 {
-                    sum += cell.0;
-                }
-            }
-        }
-        sum
+        self.data
+            .iter()
+            .filter(|(_, marked)| !marked)
+            .map(|(cell_value, _)| cell_value)
+            .sum()
     }
 }
 

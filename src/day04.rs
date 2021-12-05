@@ -4,18 +4,19 @@ type Data = (Vec<usize>, Vec<Board>);
 
 #[derive(Clone)]
 pub struct Board {
-    data: [[(usize, bool); 5]; 5],
-    is_win: bool,
+    data: [(usize, bool); 5 * 5],
+    is_bingo: bool,
 }
 
 impl std::fmt::Debug for Board {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         for y in 0..5 {
             for x in 0..5 {
-                if self.data[y][x].1 {
-                    write!(f, "{:>4}", self.data[y][x].0.to_string().yellow().bold())?;
+                let cell = self.get(x, y);
+                if cell.1 {
+                    write!(f, "{:>4}", cell.0.to_string().yellow().bold())?;
                 } else {
-                    write!(f, "{:>4}", self.data[y][x].0)?;
+                    write!(f, "{:>4}", cell.0)?;
                 }
             }
             writeln!(f)?;
@@ -25,51 +26,64 @@ impl std::fmt::Debug for Board {
 }
 
 impl Board {
-    fn new() -> Self {
+    fn new(str: &str) -> Self {
+        let data = str
+            .split('\n')
+            .flat_map(|row| {
+                row.split_whitespace()
+                    .map(|x| (x.parse().unwrap(), false))
+                    .collect::<Vec<(usize, bool)>>()
+            })
+            .collect::<Vec<_>>();
         Self {
-            data: [[(0, false); 5]; 5],
-            is_win: false,
+            data: data.try_into().unwrap(),
+            is_bingo: false,
         }
     }
 
-    fn find(&self, value: usize) -> Option<(usize, usize)> {
-        for (i, row) in self.data.iter().enumerate() {
-            if let Some(index) = row.iter().position(|x| x.0 == value) {
-                return Some((index, i));
-            }
+    fn get(&self, x: usize, y: usize) -> (usize, bool) {
+        self.data[x + y * 5]
+    }
+
+    fn mark(&mut self, value: usize) -> Option<(usize, usize)> {
+        if let Some((x, y)) = self
+            .data
+            .iter()
+            .position(|x| x.0 == value)
+            .map(|pos| (pos % 5, pos / 5))
+        {
+            self.data[x + y * 5].1 = true;
+            Some((x, y))
+        } else {
+            None
         }
-        None
     }
 
-    fn set(&mut self, position: (usize, usize)) {
-        self.data[position.1][position.0].1 = true;
-    }
-
-    fn is_win(&mut self, position: (usize, usize)) -> bool {
-        if self.is_win {
+    fn check_bingo(&mut self, x: usize, y: usize) -> bool {
+        if self.is_bingo {
             return true;
         }
-
         let mut acc_y = 0;
         let mut acc_x = 0;
-        for x in 0..5 {
-            if self.data[x][position.0].1 {
+        for i in 0..5 {
+            if self.get(x, i).1 {
                 acc_y += 1;
             }
-            if self.data[position.1][x].1 {
+            if self.get(i, y).1 {
                 acc_x += 1;
             }
         }
-        self.is_win = acc_x >= 5 || acc_y >= 5;
-        self.is_win
+        self.is_bingo = acc_x >= 5 || acc_y >= 5;
+        self.is_bingo
     }
 
-    fn get_unset_sum(&self) -> usize {
+    fn get_unmarked_sum(&self) -> usize {
         let mut sum = 0;
         for y in 0..5 {
             for x in 0..5 {
-                if !self.data[y][x].1 {
-                    sum += self.data[y][x].0;
+                let cell = self.get(x, y);
+                if !cell.1 {
+                    sum += cell.0;
                 }
             }
         }
@@ -78,30 +92,16 @@ impl Board {
 }
 
 pub fn parse(input: &str) -> Data {
-    let mut lines = input.lines();
-    let first_line = lines.next();
-    let numbers = first_line
+    let mut lines = input.split("\n\n");
+    let numbers = lines
+        .next()
         .map(|l| {
             l.split(',')
                 .map(|x| x.parse().unwrap())
                 .collect::<Vec<usize>>()
         })
         .unwrap();
-
-    let mut row = 0;
-    let mut boards = vec![];
-    for line in lines {
-        if line.is_empty() {
-            boards.push(Board::new());
-            row = 0;
-            continue;
-        }
-        for (i, x) in line.split_ascii_whitespace().enumerate() {
-            boards.last_mut().unwrap().data[row][i].0 = x.parse().unwrap();
-        }
-        row += 1;
-    }
-
+    let boards = lines.map(Board::new).collect::<Vec<_>>();
     (numbers, boards)
 }
 
@@ -109,10 +109,9 @@ pub fn part_1(input: &Data) -> usize {
     let (numbers, mut boards) = input.clone();
     for n in numbers {
         for board in boards.iter_mut() {
-            if let Some(found_pos) = board.find(n) {
-                board.set(found_pos);
-                if board.is_win(found_pos) {
-                    let sum = board.get_unset_sum();
+            if let Some((x, y)) = board.mark(n) {
+                if board.check_bingo(x, y) {
+                    let sum = board.get_unmarked_sum();
                     // println!("Bingo! {} {}", n, sum);
                     // println!("{:?}", board);
                     return sum * n;
@@ -127,18 +126,17 @@ pub fn part_2(input: &Data) -> usize {
     let (numbers, mut boards) = input.clone();
     for n in numbers {
         for board in boards.iter_mut() {
-            if let Some(found_pos) = board.find(n) {
-                board.set(found_pos);
-                board.is_win(found_pos);
+            if let Some((x, y)) = board.mark(n) {
+                board.check_bingo(x, y);
             }
         }
-        if boards.len() == 1 && boards.iter().filter(|b| b.is_win).count() == 1 {
-            let sum = boards[0].get_unset_sum();
+        if boards.len() == 1 && boards[0].is_bingo {
+            let sum = boards[0].get_unmarked_sum();
             // println!("Last bingo! {} {}", n, sum);
             // println!("{:?}", boards[0]);
             return sum * n;
         } else {
-            boards.retain(|b| !b.is_win);
+            boards.retain(|b| !b.is_bingo);
         }
     }
     unreachable!()

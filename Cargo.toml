@@ -15,3 +15,4 @@ aoc_helper = { git = "https://github.com/IceSentry/aoc_helper.git" }
 serde = "1.0.130"
 serde_derive = "1.0.130"
 colored = "2.0.0"
+anyhow = "1.0.51"

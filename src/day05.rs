@@ -1,5 +1,5 @@
+use hashbrown::HashMap;
 use serde_scan::scan;
-use std::collections::HashMap;
 
 type Data = Vec<(usize, usize, usize, usize)>;
 
@@ -14,12 +14,12 @@ pub fn part_1(input: &Data) -> usize {
     let mut map: HashMap<(usize, usize), usize> = HashMap::new();
     for (x1, y1, x2, y2) in input {
         if x1 == x2 {
-            for y in usize::min(*y1, *y2)..=usize::max(*y1, *y2) {
+            for y in *y1.min(y2)..=*y1.max(y2) {
                 *map.entry((*x1, y)).or_insert(0) += 1;
             }
         }
         if y1 == y2 {
-            for x in usize::min(*x1, *x2)..=usize::max(*x1, *x2) {
+            for x in *x1.min(x2)..=*x1.max(x2) {
                 *map.entry((x, *y1)).or_insert(0) += 1;
             }
         }
@@ -31,21 +31,21 @@ pub fn part_2(input: &Data) -> usize {
     let mut map: HashMap<(usize, usize), usize> = HashMap::new();
     for (x1, y1, x2, y2) in input {
         if x1 == x2 {
-            for y in usize::min(*y1, *y2)..=usize::max(*y1, *y2) {
+            for y in *y1.min(y2)..=*y1.max(y2) {
                 *map.entry((*x1, y)).or_insert(0) += 1;
             }
         } else if y1 == y2 {
-            for x in usize::min(*x1, *x2)..=usize::max(*x1, *x2) {
+            for x in *x1.min(x2)..=*x1.max(x2) {
                 *map.entry((x, *y1)).or_insert(0) += 1;
             }
         } else {
-            let delta_x = (*x2 as isize - *x1 as isize).signum();
-            let delta_y = (*y2 as isize - *y1 as isize).signum();
-            let mut x = *x1 as isize;
-            let mut y = *y1 as isize;
+            let delta_x = (*x2 as i16 - *x1 as i16).signum();
+            let delta_y = (*y2 as i16 - *y1 as i16).signum();
+            let mut x = *x1 as i16;
+            let mut y = *y1 as i16;
             loop {
                 *map.entry((x as usize, y as usize)).or_insert(0) += 1;
-                if x != *x2 as isize && y != *y2 as isize {
+                if x != *x2 as i16 && y != *y2 as i16 {
                     x += delta_x;
                     y += delta_y;
                 } else {

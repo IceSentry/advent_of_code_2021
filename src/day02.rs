@@ -19,56 +19,58 @@ pub fn parse(input: &str) -> Data {
 }
 
 pub fn part_1(input: &Data) -> i32 {
-    let mut x = 0;
-    let mut y = 0;
+    let mut horizontal = 0;
+    let mut depth = 0;
     for (command, value) in input {
         match command {
-            Commands::Forward => x += value,
-            Commands::Down => y += value,
-            Commands::Up => y -= value,
+            Commands::Forward => horizontal += value,
+            Commands::Down => depth += value,
+            Commands::Up => depth -= value,
         }
     }
-    x * y
+    horizontal * depth
 }
 
 pub fn part_1_iterator(input: &Data) -> i32 {
-    let (x, y) = input
-        .iter()
-        .fold((0, 0), |(x, y), (command, value)| match command {
-            Commands::Forward => (x + value, y),
-            Commands::Down => (x, y + value),
-            Commands::Up => (x, y - value),
-        });
-    x * y
+    let (horizontal, depth) =
+        input.iter().fold(
+            (0, 0),
+            |(horizontal, depth), (command, value)| match command {
+                Commands::Forward => (horizontal + value, depth),
+                Commands::Down => (horizontal, depth + value),
+                Commands::Up => (horizontal, depth - value),
+            },
+        );
+    horizontal * depth
 }
 
 pub fn part_2(input: &Data) -> i32 {
-    let mut x = 0;
-    let mut y = 0;
+    let mut horizontal = 0;
+    let mut depth = 0;
     let mut aim = 0;
     for (command, value) in input {
         match command {
             Commands::Forward => {
-                x += value;
-                y += aim * value;
+                horizontal += value;
+                depth += aim * value;
             }
             Commands::Down => aim += value,
             Commands::Up => aim -= value,
         }
     }
-    x * y
+    horizontal * depth
 }
 
 pub fn part_2_iterator(input: &Data) -> i32 {
-    let (x, y, _aim) =
-        input
-            .iter()
-            .fold((0, 0, 0), |(x, y, aim), (command, value)| match command {
-                Commands::Forward => (x + value, y + aim * value, aim),
-                Commands::Down => (x, y, aim + value),
-                Commands::Up => (x, y, aim - value),
-            });
-    x * y
+    let (horizontal, depth, _aim) = input.iter().fold(
+        (0, 0, 0),
+        |(horizontal, depth, aim), (command, value)| match command {
+            Commands::Forward => (horizontal + value, depth + aim * value, aim),
+            Commands::Down => (horizontal, depth, aim + value),
+            Commands::Up => (horizontal, depth, aim - value),
+        },
+    );
+    horizontal * depth
 }
 
 #[cfg(test)]

@@ -1,4 +1,4 @@
-type Data = Vec<i16>;
+type Data = Vec<u8>;
 
 pub fn parse(input: &str) -> Data {
     input
@@ -19,15 +19,6 @@ fn compute_fish(input: &Data, n: usize) -> usize {
     for _ in 0..n {
         let new_fish = fishes[0];
         fishes.rotate_left(1);
-        // fishes[0] = fishes[1];
-        // fishes[1] = fishes[2];
-        // fishes[2] = fishes[3];
-        // fishes[3] = fishes[4];
-        // fishes[4] = fishes[5];
-        // fishes[5] = fishes[6];
-        // fishes[6] = fishes[7];
-        // fishes[7] = fishes[8];
-        // fishes[8] = new_fish;
         fishes[6] += new_fish;
     }
     fishes.iter().sum()

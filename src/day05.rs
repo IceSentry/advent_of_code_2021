@@ -17,8 +17,7 @@ pub fn part_1(input: &Data) -> usize {
             for y in *y1.min(y2)..=*y1.max(y2) {
                 *map.entry((*x1, y)).or_insert(0) += 1;
             }
-        }
-        if y1 == y2 {
+        } else if y1 == y2 {
             for x in *x1.min(x2)..=*x1.max(x2) {
                 *map.entry((x, *y1)).or_insert(0) += 1;
             }

@@ -4,9 +4,7 @@ type Data = Vec<isize>;
 
 pub fn parse(input: &str) -> Data {
     input
-        .lines()
-        .next()
-        .unwrap()
+        .trim_end()
         .split(',')
         .map(|l| l.parse().unwrap())
         .collect()

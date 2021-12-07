@@ -6,5 +6,5 @@ aoc_helper::main! {
     day04: parse => part_1, part_2;
     day05: parse => part_1, part_2;
     day06: parse => part_1, part_2;
-    day07: parse => part_1, part_2;
+    day07: parse => part_1, part_1_median, part_2, part_2_mean;
 }

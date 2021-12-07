@@ -1,3 +1,5 @@
+use itertools::Itertools;
+
 type Data = Vec<isize>;
 
 pub fn parse(input: &str) -> Data {
@@ -11,9 +13,9 @@ pub fn parse(input: &str) -> Data {
 }
 
 pub fn part_1(input: &Data) -> usize {
-    let max = input.iter().max().unwrap();
+    let (min, max) = input.iter().minmax().into_option().unwrap();
     let mut vec = vec![];
-    for i in 0..*max {
+    for i in *min..*max {
         vec.push(0);
         for crab in input {
             vec[i as usize] += (*crab - i).abs();
@@ -34,9 +36,9 @@ pub fn part_1_median(input: &Data) -> usize {
 }
 
 pub fn part_2(input: &Data) -> usize {
-    let max = input.iter().max().unwrap();
+    let (min, max) = input.iter().minmax().into_option().unwrap();
     let mut vec = vec![];
-    for i in 0..*max {
+    for i in *min..*max {
         vec.push(0);
         for crab in input {
             let dist = *crab - i;

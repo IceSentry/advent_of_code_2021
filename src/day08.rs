@@ -70,31 +70,32 @@ pub fn part_2(input: &Data) -> usize {
                     .filter(|x| !digit_vec[digit].contains(x))
                     .count()
             };
-            if signal.len() == 2 {
-                digit_vec[1] = signal;
-            } else if signal.len() == 3 {
-                digit_vec[7] = signal;
-            } else if signal.len() == 4 {
-                digit_vec[4] = signal;
-            } else if signal.len() == 5 {
-                if contains(7) {
-                    digit_vec[3] = signal;
-                } else if remove(4) == 2 {
-                    digit_vec[5] = signal;
-                } else {
-                    digit_vec[2] = signal;
+            let digit = match signal.len() {
+                2 => 1,
+                3 => 7,
+                4 => 4,
+                5 => {
+                    if contains(7) {
+                        3
+                    } else if remove(4) == 2 {
+                        5
+                    } else {
+                        2
+                    }
                 }
-            } else if signal.len() == 6 {
-                if contains(3) && contains(5) {
-                    digit_vec[9] = signal;
-                } else if contains(5) {
-                    digit_vec[6] = signal;
-                } else {
-                    digit_vec[0] = signal;
+                6 => {
+                    if contains(3) && contains(5) {
+                        9
+                    } else if contains(5) {
+                        6
+                    } else {
+                        0
+                    }
                 }
-            } else if signal.len() == 7 {
-                digit_vec[8] = signal;
-            }
+                7 => 8,
+                _ => unreachable!(),
+            };
+            digit_vec[digit] = signal;
         }
 
         let mut out = 0;
@@ -105,8 +106,6 @@ pub fn part_2(input: &Data) -> usize {
                 }
             }
         }
-
-        // println!("{:?}", out);
         sum += out;
     }
     sum

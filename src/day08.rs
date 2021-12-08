@@ -1,3 +1,5 @@
+use itertools::Itertools;
+
 type Data = Vec<(Vec<Vec<char>>, Vec<Vec<char>>)>;
 
 pub fn parse(input: &str) -> Data {
@@ -6,25 +8,29 @@ pub fn parse(input: &str) -> Data {
         .map(|line| line.split_once('|').unwrap())
         .map(|(l, r)| {
             (
-                l.trim().split(' ').map(|s| s.chars().collect()).collect(),
-                r.trim().split(' ').map(|s| s.chars().collect()).collect(),
+                l.trim()
+                    .split(' ')
+                    .map(|s| s.chars().sorted().collect())
+                    .collect(),
+                r.trim()
+                    .split(' ')
+                    .map(|s| s.chars().sorted().collect())
+                    .collect(),
             )
         })
         .collect()
 }
 
 pub fn part_1(input: &Data) -> usize {
-    let mut sum = 0;
-    for line in input {
-        let (_signal_patterns, outputs) = line;
-        for output in outputs {
-            match output.len() {
-                2 | 4 | 3 | 7 => sum += 1,
-                _ => (),
-            }
-        }
-    }
-    sum
+    input
+        .iter()
+        .map(|(_, outputs)| {
+            outputs
+                .iter()
+                .filter(|x| matches!(x.len(), 2 | 3 | 4 | 7))
+                .count()
+        })
+        .sum()
 }
 
 // 0:      1:      2:      3:      4:
@@ -57,58 +63,58 @@ pub fn part_1(input: &Data) -> usize {
 // 8 => ['a', 'b', 'c', 'd', 'e', 'f', 'g']
 
 pub fn part_2(input: &Data) -> usize {
-    let mut sum = 0;
-    for line in input {
-        let (mut signal_patterns, outputs) = line.clone();
-        signal_patterns.sort_by_key(|x| x.len());
-        let mut digit_vec = vec![vec![]; 10];
-        for signal in signal_patterns {
-            let contains = |digit: usize| digit_vec[digit].iter().all(|x| signal.contains(x));
-            let remove = |digit: usize| {
-                signal
-                    .iter()
-                    .filter(|x| !digit_vec[digit].contains(x))
-                    .count()
-            };
-            let digit = match signal.len() {
-                2 => 1,
-                3 => 7,
-                4 => 4,
-                5 => {
-                    if contains(7) {
-                        3
-                    } else if remove(4) == 2 {
-                        5
-                    } else {
-                        2
+    input
+        .iter()
+        .map(|line| {
+            let (mut signal_patterns, outputs) = line.clone();
+            signal_patterns.sort_by_key(|x| x.len());
+            let mut digit_vec = vec![vec![]; 10];
+            for signal in signal_patterns {
+                let contains = |digit: usize| digit_vec[digit].iter().all(|x| signal.contains(x));
+                let difference = |digit: usize| {
+                    signal
+                        .iter()
+                        .filter(|x| !digit_vec[digit].contains(x))
+                        .count()
+                };
+                let digit = match signal.len() {
+                    2 => 1,
+                    3 => 7,
+                    4 => 4,
+                    5 => {
+                        if contains(7) {
+                            3
+                        } else if difference(4) == 2 {
+                            5
+                        } else {
+                            2
+                        }
                     }
-                }
-                6 => {
-                    if contains(3) && contains(5) {
-                        9
-                    } else if contains(5) {
-                        6
-                    } else {
-                        0
+                    6 => {
+                        if contains(7) && contains(4) {
+                            9
+                        } else if contains(5) {
+                            6
+                        } else {
+                            0
+                        }
                     }
-                }
-                7 => 8,
-                _ => unreachable!(),
-            };
-            digit_vec[digit] = signal;
-        }
-
-        let mut out = 0;
-        for (i, o) in outputs.iter().rev().enumerate() {
-            for (digit, chars) in digit_vec.iter().enumerate() {
-                if o.len() == chars.len() && o.iter().all(|c| chars.contains(c)) {
-                    out += digit * 10_usize.pow(i as u32);
-                }
+                    7 => 8,
+                    _ => unreachable!(),
+                };
+                digit_vec[digit] = signal;
             }
-        }
-        sum += out;
-    }
-    sum
+
+            outputs
+                .iter()
+                .rev()
+                .enumerate()
+                .fold(0, |acc, (i, output)| {
+                    acc + digit_vec.iter().position(|x| x == output).unwrap()
+                        * 10_usize.pow(i as u32)
+                })
+        })
+        .sum()
 }
 
 #[cfg(test)]
@@ -134,13 +140,9 @@ mod tests {
 
     #[test]
     pub fn part_1() {
-        println!("\nshort\n");
-
         let input = super::parse(INPUTS_SMALL);
         let result = super::part_1(&input);
         assert_eq!(result, 0);
-
-        println!("\nlong\n");
 
         let input = super::parse(INPUTS_LONG);
         let result = super::part_1(&input);
@@ -149,13 +151,9 @@ mod tests {
 
     #[test]
     pub fn part_2() {
-        println!("\nshort\n");
-
         let input = super::parse(INPUTS_SMALL);
         let result = super::part_2(&input);
         assert_eq!(result, 5353);
-
-        println!("\nlong\n");
 
         let input = super::parse(INPUTS_LONG);
         let result = super::part_2(&input);

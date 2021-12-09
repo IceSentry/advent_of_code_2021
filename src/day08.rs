@@ -5,7 +5,7 @@ type Data = Vec<(Vec<Vec<char>>, Vec<Vec<char>>)>;
 pub fn parse(input: &str) -> Data {
     input
         .lines()
-        .map(|line| line.split_once('|').unwrap())
+        .filter_map(|line| line.split_once('|'))
         .map(|(l, r)| {
             (
                 l.trim()
@@ -51,68 +51,66 @@ pub fn part_1(input: &Data) -> usize {
 // .    f  e    f  .    f  e    f  .    f
 //  gggg    gggg    ....    gggg    gggg
 
-// 1 => ['c', 'f']
-// 7 => ['a', 'c', 'f']
-// 4 => ['b', 'c', 'd', 'f']
-// 3 => ['a', 'c', 'd', 'f', 'g']
-// 2 => ['a', 'c', 'd', 'e', 'g']
-// 5 => ['a', 'b', 'd', 'f', 'g']
-// 0 => ['a', 'b', 'c', 'e', 'f', 'g']
-// 6 => ['a', 'b', 'd', 'e', 'f', 'g']
-// 9 => ['a', 'b', 'c', 'd', 'f', 'g']
-// 8 => ['a', 'b', 'c', 'd', 'e', 'f', 'g']
+// 1 => [c, f]
+// 7 => [a, c, f]
+// 4 => [b, c, d, f]
+// 3 => [a, c, d, f, g]
+// 2 => [a, c, d, e, g]
+// 5 => [a, b, d, f, g]
+// 0 => [a, b, c, e, f, g]
+// 6 => [a, b, d, e, f, g]
+// 9 => [a, b, c, d, f, g]
+// 8 => [a, b, c, d, e, f, g]
 
 pub fn part_2(input: &Data) -> usize {
     input
         .iter()
-        .map(|line| {
-            let (mut signal_patterns, outputs) = line.clone();
-            signal_patterns.sort_by_key(|x| x.len());
-            let mut digit_vec = vec![vec![]; 10];
+        .map(|(signal_patterns, outputs)| {
+            let mut s1 = &vec![];
+            let mut s4 = &vec![];
             for signal in signal_patterns {
-                let contains = |digit: usize| digit_vec[digit].iter().all(|x| signal.contains(x));
-                let difference = |digit: usize| {
-                    signal
-                        .iter()
-                        .filter(|x| !digit_vec[digit].contains(x))
-                        .count()
+                match signal.len() {
+                    2 => s1 = signal,
+                    4 => s4 = signal,
+                    _ => (),
                 };
-                let digit = match signal.len() {
+                if !s1.is_empty() && !s4.is_empty() {
+                    break;
+                }
+            }
+
+            let diff = |signal: &Vec<char>, output: &Vec<char>| {
+                output.iter().filter(|x| !signal.contains(x)).count()
+            };
+
+            outputs
+                .iter()
+                .map(|output| match output.len() {
                     2 => 1,
                     3 => 7,
                     4 => 4,
+                    7 => 8,
                     5 => {
-                        if contains(7) {
+                        if diff(s1, output) == 3 {
                             3
-                        } else if difference(4) == 2 {
+                        } else if diff(s4, output) == 2 {
                             5
                         } else {
                             2
                         }
                     }
                     6 => {
-                        if contains(7) && contains(4) {
+                        if diff(s4, output) == 2 {
                             9
-                        } else if contains(5) {
+                        } else if diff(s1, output) == 5 {
                             6
                         } else {
                             0
                         }
                     }
-                    7 => 8,
                     _ => unreachable!(),
-                };
-                digit_vec[digit] = signal;
-            }
-
-            outputs
-                .iter()
-                .rev()
-                .enumerate()
-                .fold(0, |acc, (i, output)| {
-                    acc + digit_vec.iter().position(|x| x == output).unwrap()
-                        * 10_usize.pow(i as u32)
                 })
+                .fold(0, |acc, digit| acc * 10 + digit)
         })
         .sum()
 }

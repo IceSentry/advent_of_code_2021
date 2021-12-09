@@ -72,7 +72,7 @@ pub fn part_2(input: &Data) -> usize {
                 match signal.len() {
                     2 => s1 = signal,
                     4 => s4 = signal,
-                    _ => (),
+                    _ => continue,
                 };
                 if !s1.is_empty() && !s4.is_empty() {
                     break;

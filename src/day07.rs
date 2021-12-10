@@ -1,4 +1,5 @@
-use itertools::Itertools;
+/// See this paper for more detail on the median and mean solution
+/// https://www.reddit.com/r/adventofcode/comments/rawxad/2021_day_7_part_2_i_wrote_a_paper_on_todays/
 
 type Data = Vec<isize>;
 
@@ -11,10 +12,9 @@ pub fn parse(input: &str) -> Data {
 }
 
 pub fn part_1(input: &Data) -> usize {
-    let (min, max) = input.iter().minmax().into_option().unwrap();
-    let mut vec = vec![];
-    for i in *min..*max {
-        vec.push(0);
+    let max = input.iter().max().unwrap();
+    let mut vec = vec![0; *max as usize];
+    for i in 0..*max {
         for crab in input {
             vec[i as usize] += (*crab - i).abs();
         }
@@ -34,10 +34,9 @@ pub fn part_1_median(input: &Data) -> usize {
 }
 
 pub fn part_2(input: &Data) -> usize {
-    let (min, max) = input.iter().minmax().into_option().unwrap();
-    let mut vec = vec![];
-    for i in *min..*max {
-        vec.push(0);
+    let max = input.iter().max().unwrap();
+    let mut vec = vec![0; *max as usize];
+    for i in 0..*max {
         for crab in input {
             let dist = *crab - i;
             let fuel = (dist.pow(2) + dist.abs()) / 2;
@@ -48,21 +47,18 @@ pub fn part_2(input: &Data) -> usize {
 }
 
 pub fn part_2_mean(input: &Data) -> usize {
-    let n = input.len() as isize;
-    let mean = input.iter().sum::<isize>() / n;
-    let fuel = |dist: isize| (dist.pow(2) + dist.abs()) / 2;
+    let mean = input.iter().sum::<isize>() as f32 / input.len() as f32;
+    let fuel = |dist: isize| (dist.pow(2) + dist) / 2;
 
-    let mut sum_1 = 0;
-    for crab in input {
-        let dist = (crab - (mean as f32).floor() as isize).abs();
-        sum_1 += fuel(dist);
-    }
+    let sum_1: isize = input
+        .iter()
+        .map(|crab| fuel((crab - mean.floor() as isize).abs()))
+        .sum();
 
-    let mut sum_2 = 0;
-    for crab in input {
-        let dist = (crab - (mean as f32).ceil() as isize).abs();
-        sum_2 += fuel(dist);
-    }
+    let sum_2: isize = input
+        .iter()
+        .map(|crab| fuel((crab - mean.ceil() as isize).abs()))
+        .sum();
 
     sum_1.min(sum_2) as usize
 }

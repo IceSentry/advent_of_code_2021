@@ -1,3 +1,7 @@
+use std::collections::VecDeque;
+
+use hashbrown::HashSet;
+
 type Data = Map;
 
 pub struct Map {
@@ -17,17 +21,16 @@ impl Map {
 }
 
 pub fn parse(input: &str) -> Data {
-    let mut lines = input.trim().lines().peekable();
-    let cols = lines.peek().unwrap().len();
-    let rows = lines.count();
-    let height_map = input
+    let height_map: Vec<Vec<u32>> = input
         .lines()
         .map(|l| l.chars().flat_map(|c| c.to_digit(10)).collect())
         .collect();
+    let cols = height_map.len();
+    let rows = height_map[0].len();
     Map {
         data: height_map,
-        cols,
-        rows,
+        rows: cols,
+        cols: rows,
     }
 }
 
@@ -60,21 +63,22 @@ pub fn parse(input: &str) -> Data {
 //     results.iter().sum()
 // }
 
-fn check_neighbours(map: &Map, at_x: usize, at_y: usize, value: u32) -> bool {
-    let neighbours: Vec<(isize, isize)> = vec![(0, 1), (1, 0), (0, -1), (-1, 0)];
-    neighbours
+const NEIGHBOURS: [(isize, isize); 4] = [(0, 1), (1, 0), (0, -1), (-1, 0)];
+
+fn check_neighbours(map: &Map, at_x: usize, at_y: usize, value: &u32) -> bool {
+    NEIGHBOURS
         .iter()
         .map(|(n_x, n_y)| (at_x as isize + n_x, at_y as isize + n_y))
         .filter_map(|(x, y)| map.get(x as usize, y as usize))
-        .all(|n| n > &value)
+        .all(|n| n > value)
 }
 
 pub fn part_1(input: &Data) -> u32 {
     let mut results = vec![];
-    for y in 0..input.cols {
-        for x in 0..input.rows {
+    for y in 0..input.rows {
+        for x in 0..input.cols {
             let value = input.data[y][x];
-            if check_neighbours(input, x, y, value) {
+            if check_neighbours(input, x, y, &value) {
                 results.push(value + 1);
             }
         }
@@ -83,15 +87,55 @@ pub fn part_1(input: &Data) -> u32 {
 }
 
 pub fn part_2(input: &Data) -> u32 {
-    for y in 0..input.cols {
-        for x in 0..input.rows {
+    let mut basins = vec![];
+    for y in 0..input.rows {
+        for x in 0..input.cols {
             let value = input.data[y][x];
-            if check_neighbours(input, x, y, value) {
-                // TODO start BFS
+            if check_neighbours(input, x, y, &value) {
+                // println!("looking for basin from ({}, {}): {}", x, y, value);
+                basins.push(find_basin_size(input, x, y));
+                // println!();
             }
         }
     }
-    0
+    basins.sort_unstable();
+    // println!("{:?}", basins);
+    basins.iter().rev().take(3).product::<usize>() as u32
+}
+
+fn get_neighbours(map: &Map, x: usize, y: usize) -> Vec<((usize, usize), u32)> {
+    NEIGHBOURS
+        .iter()
+        .map(|(n_x, n_y)| (x as isize + n_x, y as isize + n_y))
+        .filter_map(|(n_x, n_y)| {
+            map.get(n_x as usize, n_y as usize)
+                .map(|v| ((n_x as usize, n_y as usize), *v))
+        })
+        .collect()
+}
+
+fn find_basin_size(map: &Map, x: usize, y: usize) -> usize {
+    let mut queue = VecDeque::new();
+    let mut checked = HashSet::new();
+    checked.insert((x, y));
+    queue.push_front((x, y));
+
+    while !queue.is_empty() {
+        let pos = queue.pop_back().expect("queue should not be empty");
+        if let Some(v) = map.get(pos.0, pos.1) {
+            // println!("checking neighbours of {:?}: {}", pos, v);
+            for (n_pos, n_v) in get_neighbours(map, pos.0, pos.1) {
+                // print!("{:?}: {}", n_pos, n_v);
+                if n_v != 9 && &n_v > v && !checked.contains(&n_pos) {
+                    // print!(" enqueue");
+                    checked.insert(n_pos);
+                    queue.push_front(n_pos);
+                }
+                // println!();
+            }
+        }
+    }
+    checked.len()
 }
 
 #[cfg(test)]
@@ -111,7 +155,8 @@ mod tests {
         let input = super::parse(INPUTS);
         println!("{:?}", input.data);
         println!("{:?}", input.data.len());
-        println!("cols: {}", input.cols);
+        println!("cols: {}", input.rows);
+        println!("rows: {}", input.cols);
 
         let result = super::part_1(&input);
         assert_eq!(result, 15);
@@ -121,6 +166,6 @@ mod tests {
     pub fn part_2() {
         let input = super::parse(INPUTS);
         let result = super::part_2(&input);
-        assert_eq!(result, 0);
+        assert_eq!(result, 1134);
     }
 }

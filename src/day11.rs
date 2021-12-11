@@ -40,30 +40,32 @@ fn print_data(data: &Data) {
 }
 
 fn step(data: &mut Data) -> usize {
-    let mut flashes = 0;
     for rows in data.iter_mut() {
         for value in rows.iter_mut() {
             *value += 1;
         }
     }
 
+    let mut flashes = 0;
     let mut keep_running = true;
     while keep_running {
         keep_running = false;
         for y in 0..10 {
             for x in 0..10 {
-                if data[y][x] > 9 {
-                    flashes += 1;
-                    data[y][x] = 0;
-                    for (n_x, n_y) in NEIGHBOURS {
-                        if let Some(val) = data
-                            .get_mut((y as isize + n_y) as usize)
-                            .and_then(|row| row.get_mut((x as isize + n_x) as usize))
-                        {
-                            if *val <= 9 && *val != 0 {
-                                *val += 1;
-                                keep_running = true;
-                            }
+                if data[y][x] <= 9 {
+                    continue;
+                }
+
+                flashes += 1;
+                data[y][x] = 0;
+                for (n_x, n_y) in NEIGHBOURS {
+                    if let Some(val) = data
+                        .get_mut((y as isize + n_y) as usize)
+                        .and_then(|row| row.get_mut((x as isize + n_x) as usize))
+                    {
+                        if *val <= 9 && *val != 0 {
+                            *val += 1;
+                            keep_running = true;
                         }
                     }
                 }
@@ -87,8 +89,8 @@ pub fn part_2(input: &Data) -> usize {
     let mut i = 0;
     loop {
         i += 1;
-        step(&mut data);
-        if data.iter().all(|row| row.iter().all(|val| *val == 0)) {
+        // step(&mut data);
+        if step(&mut data) == 100 {
             return i;
         }
     }

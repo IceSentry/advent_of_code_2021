@@ -18,45 +18,31 @@ fn matching(c: char) -> char {
     }
 }
 
-fn part_1_score(c: char) -> usize {
-    match c {
-        ')' => 3,
-        ']' => 57,
-        '}' => 1197,
-        '>' => 25137,
-        _ => unreachable!(),
+fn complete_line(line: &str) -> Result<Vec<char>, char> {
+    let mut stack = Vec::new();
+    for c in line.chars() {
+        match c {
+            '(' | '[' | '{' | '<' => stack.push(c),
+            closing => {
+                if stack.pop().unwrap() != matching(closing) {
+                    return Err(c);
+                }
+            }
+        }
     }
-}
-
-fn part_2_score(c: char) -> usize {
-    match c {
-        ')' => 1,
-        ']' => 2,
-        '}' => 3,
-        '>' => 4,
-        _ => unreachable!(),
-    }
+    Ok(stack)
 }
 
 pub fn part_1(input: &Data) -> usize {
     let mut sum = 0;
     for line in input {
-        let mut stack = Vec::new();
-        for c in line.chars() {
-            match c {
-                '(' | '[' | '{' | '<' => stack.push(c),
-                closing => {
-                    if stack.pop().unwrap() != matching(closing) {
-                        sum += match c {
-                            ')' => 3,
-                            ']' => 57,
-                            '}' => 1197,
-                            '>' => 25137,
-                            _ => unreachable!(),
-                        };
-                        break;
-                    }
-                }
+        if let Err(c) = complete_line(line) {
+            sum += match c {
+                ')' => 3,
+                ']' => 57,
+                '}' => 1197,
+                '>' => 25137,
+                _ => unreachable!(),
             }
         }
     }
@@ -66,21 +52,7 @@ pub fn part_1(input: &Data) -> usize {
 pub fn part_2(input: &Data) -> usize {
     let mut scores = vec![];
     for line in input {
-        let mut stack = Vec::new();
-        let mut is_corrupted = false;
-        for c in line.chars() {
-            match c {
-                '(' | '[' | '{' | '<' => stack.push(c),
-                closing => {
-                    if stack.pop().unwrap() != matching(closing) {
-                        is_corrupted = true;
-                        break;
-                    }
-                }
-            }
-        }
-
-        if !is_corrupted {
+        if let Ok(stack) = complete_line(line) {
             let score = stack.iter().rev().fold(0, |acc, &c| {
                 acc * 5
                     + match matching(c) {

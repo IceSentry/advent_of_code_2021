@@ -56,16 +56,25 @@ pub fn part_1(input: &Data) -> u32 {
 }
 
 pub fn part_2(input: &Data) -> u32 {
-    let mut basins = vec![];
+    let mut basins = vec![0; 3];
     for (y, rows) in input.data.iter().enumerate() {
         for (x, value) in rows.iter().enumerate() {
             if input.check_neighbours((x, y), value) {
-                basins.push(find_basin_size(input, (x, y)));
+                let size = find_basin_size(input, (x, y));
+                if basins[0] < size {
+                    basins[2] = basins[1];
+                    basins[1] = basins[0];
+                    basins[0] = size;
+                } else if basins[1] < size {
+                    basins[2] = basins[1];
+                    basins[1] = size;
+                } else if basins[2] < size {
+                    basins[2] = size;
+                }
             }
         }
     }
-    basins.sort_unstable();
-    basins.iter().rev().take(3).product::<usize>() as u32
+    basins.iter().product::<usize>() as u32
 }
 
 fn find_basin_size(map: &Map, root: (usize, usize)) -> usize {

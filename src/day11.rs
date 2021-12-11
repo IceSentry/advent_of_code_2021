@@ -47,9 +47,8 @@ fn step(data: &mut Data) -> usize {
     }
 
     let mut flashes = 0;
-    let mut keep_running = true;
-    while keep_running {
-        keep_running = false;
+    loop {
+        let mut keeo_running = false;
         for y in 0..10 {
             for x in 0..10 {
                 if data[y][x] <= 9 {
@@ -57,7 +56,9 @@ fn step(data: &mut Data) -> usize {
                 }
 
                 flashes += 1;
+                keeo_running = true;
                 data[y][x] = 0;
+
                 for (n_x, n_y) in NEIGHBOURS {
                     if let Some(val) = data
                         .get_mut((y as isize + n_y) as usize)
@@ -65,14 +66,15 @@ fn step(data: &mut Data) -> usize {
                     {
                         if *val <= 9 && *val != 0 {
                             *val += 1;
-                            keep_running = true;
                         }
                     }
                 }
             }
         }
+        if !keeo_running {
+            return flashes;
+        }
     }
-    flashes
 }
 
 pub fn part_1(input: &Data) -> usize {

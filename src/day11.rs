@@ -25,7 +25,7 @@ const NEIGHBOURS: [(isize, isize); 8] = [
     (-1, -1),
 ];
 
-fn print_data(data: &Data) {
+fn _print_data(data: &Data) {
     for row in data {
         for val in row {
             if *val == 0 {

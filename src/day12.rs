@@ -1,5 +1,4 @@
 use hashbrown::{HashMap, HashSet};
-use itertools::Itertools;
 use serde_scan::scan;
 
 type Data = HashMap<String, Vec<String>>;
@@ -19,97 +18,53 @@ pub fn parse(input: &str) -> Data {
     map
 }
 
-pub fn part_1(input: &Data) -> usize {
-    let paths = find_paths(input, &[], &HashSet::new(), "start".into());
-    // println!("{} paths found:", paths.len());
-    // for p in &paths {
-    //     println!("{:?}", p);
-    // }
-    paths.len()
-}
-
 fn find_paths(
     graph: &HashMap<String, Vec<String>>,
-    path: &[String],
-    visited: &HashSet<String>,
-    cave: String,
-) -> Vec<Vec<String>> {
-    if visited.contains(&cave) {
-        return vec![];
-    }
-
-    let mut path = path.to_owned();
-    path.extend_from_slice(&[cave.clone()]);
-
+    path: &mut Vec<String>,
+    cave: &str,
+    valid_path: fn(&[String], &str) -> bool,
+) -> usize {
     if cave == "end" {
-        return vec![path];
+        return 1;
     }
 
-    let mut visited = visited.clone();
-    if cave.chars().all(|c| c.is_lowercase()) {
-        visited.insert(cave.clone());
+    if valid_path(path, cave) {
+        return 0;
     }
 
-    let mut paths = vec![];
-    for c in &graph[&cave] {
-        paths.extend(find_paths(graph, &path, &visited, c.clone()));
-    }
-    paths
+    path.push(cave.into());
+    let count = graph[cave]
+        .iter()
+        .map(|cave| find_paths(graph, path, cave, valid_path))
+        .sum();
+    path.pop();
+    count
+}
+
+pub fn part_1(input: &Data) -> usize {
+    find_paths(input, &mut Vec::new(), "start", |path, cave| {
+        path.contains(&cave.to_string()) && cave.chars().all(|c| c.is_lowercase())
+    })
 }
 
 pub fn part_2(input: &Data) -> usize {
-    let paths = find_paths_2(input, &[], "start");
-    // println!("{} paths found:", paths.len());
-    // let paths_out = paths.iter().map(|p| p.join(",")).sorted();
-    // for p in paths_out {
-    //     println!("{}", p);
-    // }
-    paths.len()
-}
-
-fn path_contains(path: &[String], cave: &str) -> bool {
-    if cave == "start" && path.len() > 1 {
-        return true;
-    }
-    let mut visited = HashMap::new();
-    for c in path {
-        if c.chars().all(|c| c.is_lowercase()) {
-            *visited.entry(c).or_insert(0) += 1;
+    find_paths(input, &mut Vec::new(), "start", |path, cave| {
+        if cave == "start" && path.len() > 1 {
+            return true;
         }
-    }
-    let key = cave.to_string();
-    if visited.contains_key(&key) {
-        if visited.values().filter(|v| **v == 2).count() == 1 {
-            visited[&key] == 1 || visited[&key] == 2
-        } else {
-            false
+        let mut visited = HashSet::new();
+        let mut repeat = false;
+        for c in path {
+            if c.chars().all(|c| c.is_lowercase()) {
+                if visited.contains(c) {
+                    repeat = true;
+                } else {
+                    visited.insert(c);
+                }
+            }
         }
-    } else {
-        false
-    }
-}
-
-fn find_paths_2(
-    graph: &HashMap<String, Vec<String>>,
-    path: &[String],
-    cave: &str,
-) -> Vec<Vec<String>> {
-    if path_contains(path, cave) {
-        return vec![];
-    }
-
-    let mut path = path.to_owned();
-    path.extend_from_slice(&[cave.into()]);
-
-    if cave == "end" {
-        return vec![path];
-    }
-
-    let mut paths = vec![];
-    for c in &graph[cave] {
-        paths.extend(find_paths_2(graph, &path, c).into_iter());
-    }
-    paths
+        visited.contains(&cave.to_string()) && repeat
+    })
 }
 
 #[cfg(test)]

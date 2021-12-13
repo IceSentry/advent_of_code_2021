@@ -1,16 +1,14 @@
-use hashbrown::{HashMap, HashSet};
-use serde_scan::scan;
+use hashbrown::HashMap;
 
-type Data = HashMap<String, Vec<String>>;
+type Cave = String;
+type Graph = HashMap<Cave, Vec<Cave>>;
 
-pub fn parse(input: &str) -> Data {
-    let input: Vec<(String, String)> = input
-        .lines()
-        .map(|line| scan!("{}-{}" <- line).expect("Failed to parse input"))
-        .collect();
-
+pub fn parse(input: &str) -> Graph {
     let mut map = HashMap::new();
-    for (l, r) in input {
+    for line in input.lines() {
+        let (l, r) = line.split_once('-').expect("");
+        let l = l.to_string();
+        let r = r.to_string();
         map.entry(l.clone()).or_insert(vec![]).push(r.clone());
         map.entry(r.clone()).or_insert(vec![]).push(l.clone());
     }
@@ -18,53 +16,34 @@ pub fn parse(input: &str) -> Data {
     map
 }
 
-fn find_paths(
-    graph: &HashMap<String, Vec<String>>,
-    path: &mut Vec<String>,
-    cave: &str,
-    valid_path: fn(&[String], &str) -> bool,
-) -> usize {
+fn find_paths(graph: &Graph, path: &mut Vec<Cave>, cave: &str, mut repeat_found: bool) -> usize {
     if cave == "end" {
         return 1;
     }
 
-    if valid_path(path, cave) {
-        return 0;
+    if path.contains(&cave.to_string()) && cave.chars().all(|c| c.is_lowercase()) {
+        if repeat_found || cave == "start" {
+            return 0;
+        } else {
+            repeat_found = true;
+        }
     }
 
     path.push(cave.into());
     let count = graph[cave]
         .iter()
-        .map(|cave| find_paths(graph, path, cave, valid_path))
+        .map(|cave| find_paths(graph, path, cave, repeat_found))
         .sum();
     path.pop();
     count
 }
 
-pub fn part_1(input: &Data) -> usize {
-    find_paths(input, &mut Vec::new(), "start", |path, cave| {
-        path.contains(&cave.to_string()) && cave.chars().all(|c| c.is_lowercase())
-    })
+pub fn part_1(input: &Graph) -> usize {
+    find_paths(input, &mut Vec::new(), "start", true)
 }
 
-pub fn part_2(input: &Data) -> usize {
-    find_paths(input, &mut Vec::new(), "start", |path, cave| {
-        if cave == "start" && path.len() > 1 {
-            return true;
-        }
-        let mut visited = HashSet::new();
-        let mut repeat = false;
-        for c in path {
-            if c.chars().all(|c| c.is_lowercase()) {
-                if visited.contains(c) {
-                    repeat = true;
-                } else {
-                    visited.insert(c);
-                }
-            }
-        }
-        visited.contains(&cave.to_string()) && repeat
-    })
+pub fn part_2(input: &Graph) -> usize {
+    find_paths(input, &mut Vec::new(), "start", false)
 }
 
 #[cfg(test)]

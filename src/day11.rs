@@ -40,15 +40,13 @@ fn _print_data(data: &Data) {
 }
 
 fn step(data: &mut Data) -> usize {
-    for rows in data.iter_mut() {
-        for value in rows.iter_mut() {
-            *value += 1;
-        }
+    for value in data.iter_mut().flatten() {
+        *value += 1;
     }
 
     let mut flashes = 0;
     loop {
-        let mut keeo_running = false;
+        let mut keep_running = false;
         for y in 0..10 {
             for x in 0..10 {
                 if data[y][x] <= 9 {
@@ -56,7 +54,7 @@ fn step(data: &mut Data) -> usize {
                 }
 
                 flashes += 1;
-                keeo_running = true;
+                keep_running = true;
                 data[y][x] = 0;
 
                 for (n_x, n_y) in NEIGHBOURS {
@@ -71,7 +69,7 @@ fn step(data: &mut Data) -> usize {
                 }
             }
         }
-        if !keeo_running {
+        if !keep_running {
             return flashes;
         }
     }
@@ -91,7 +89,6 @@ pub fn part_2(input: &Data) -> usize {
     let mut i = 0;
     loop {
         i += 1;
-        // step(&mut data);
         if step(&mut data) == 100 {
             return i;
         }

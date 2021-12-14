@@ -1,7 +1,13 @@
 use hashbrown::HashSet;
 use serde_scan::scan;
 
-type Data = (HashSet<(usize, usize)>, Vec<(char, usize)>);
+type Data = (HashSet<(usize, usize)>, Vec<Fold>);
+
+#[derive(Clone, Copy)]
+pub enum Fold {
+    Y(usize),
+    X(usize),
+}
 
 pub fn parse(input: &str) -> Data {
     let (dots, folds) = input.split_once("\n\n").unwrap();
@@ -14,24 +20,27 @@ pub fn parse(input: &str) -> Data {
         folds
             .lines()
             .flat_map(|l| scan!("fold along {}={}" <- l))
+            .map(|(direction, value)| match direction {
+                'y' => Fold::Y(value),
+                'x' => Fold::X(value),
+                _ => unreachable!(),
+            })
             .collect(),
     )
 }
 
-fn fold(dots: &mut HashSet<(usize, usize)>, fold_line: char, fold_value: usize) {
+fn fold(dots: &mut HashSet<(usize, usize)>, fold: Fold) {
     let folded = dots
-        .drain_filter(|(x, y)| match fold_line {
-            'y' => y > &fold_value,
-            'x' => x > &fold_value,
-            _ => unreachable!(),
+        .drain_filter(|(x, y)| match fold {
+            Fold::Y(value) => y > &value,
+            Fold::X(value) => x > &value,
         })
         .collect::<Vec<_>>();
 
     for (x, y) in folded {
-        let dot = match fold_line {
-            'y' => (x, fold_value - (y - fold_value)),
-            'x' => (fold_value - (x - fold_value), y),
-            _ => unreachable!(),
+        let dot = match fold {
+            Fold::Y(v) => (x, v - (y - v)),
+            Fold::X(v) => (v - (x - v), y),
         };
         if !dots.contains(&dot) {
             dots.insert(dot);
@@ -59,17 +68,15 @@ fn print_output(dots: &HashSet<(usize, usize)>) {
 
 pub fn part_1(input: &Data) -> usize {
     let (mut dots, folds) = input.clone();
-    let (fold_line, fold_value) = folds[0];
-
-    fold(&mut dots, fold_line, fold_value);
+    fold(&mut dots, folds[0]);
 
     dots.len()
 }
 
 pub fn part_2(input: &Data) -> usize {
     let (mut dots, folds) = input.clone();
-    for (fold_line, fold_value) in folds {
-        fold(&mut dots, fold_line, fold_value);
+    for f in folds {
+        fold(&mut dots, f);
     }
 
     print_output(&dots);

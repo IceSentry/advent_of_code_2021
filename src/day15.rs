@@ -1,99 +1,86 @@
 use std::collections::BinaryHeap;
 
-use hashbrown::HashMap;
-
-type Data = Vec<Vec<u32>>;
+type Data = Vec<Vec<i32>>;
 
 type Point = (usize, usize);
 
 pub fn parse(input: &str) -> Data {
     input
         .lines()
-        .map(|l| l.chars().flat_map(|c| c.to_digit(10)).collect())
+        .map(|l| {
+            l.chars()
+                .flat_map(|c| c.to_digit(10))
+                .map(|x| x as i32)
+                .collect()
+        })
         .collect()
 }
 
-const NEIGHBOURS: [(isize, isize); 4] = [(0, 1), (1, 0), (-1, 0), (0, -1)];
+fn shortest_path(data: &Data, start: Point, goal: Point) -> i32 {
+    let mut dist = vec![vec![i32::MAX; data[0].len()]; data.len()];
 
-fn get(data: &Data, pos: Point) -> Option<&u32> {
-    data.get(pos.1).and_then(|row| row.get(pos.0))
-}
+    let mut queue = BinaryHeap::new();
+    queue.push((0, start.0, start.1));
 
-fn get_neighbours(pos: Point) -> Vec<Point> {
-    NEIGHBOURS
-        .iter()
-        .map(|(n_x, n_y)| (pos.0 as isize + n_x, pos.1 as isize + n_y))
-        .map(|(x, y)| (x as usize, y as usize))
-        .collect()
-}
-
-fn shortest_path(data: &Data, start: Point, goal: Point) -> u32 {
-    let mut dist = HashMap::new();
-    for (y, row) in data.iter().enumerate() {
-        for (x, _risk) in row.iter().enumerate() {
-            dist.entry((x, y)).insert(u32::MAX);
+    // WARN
+    // The cost needs to be the first element of the tuple
+    // Rust will check the elements in order and compare them until one is not equal to the other
+    while let Some((cost, x, y)) = queue.pop() {
+        if (x, y) == goal {
+            return -cost;
         }
-    }
-    dist.entry(start).insert(0);
-
-    let mut heap = BinaryHeap::new();
-    heap.push((start, 0));
-
-    while let Some((position, cost)) = heap.pop() {
-        if cost > dist[&position] {
+        if -cost > dist[y][x] {
             continue;
         }
-
-        for n_position in get_neighbours(position) {
-            if let Some(n_cost) = get(data, n_position) {
-                let n_cost = cost + n_cost;
-                if n_cost < dist[&n_position] {
-                    heap.push((n_position, n_cost));
-                    dist.entry(n_position).insert(n_cost);
+        for (n_x, n_y) in [
+            (x.wrapping_sub(1), y),
+            (x + 1, y),
+            (x, y.wrapping_sub(1)),
+            (x, y + 1),
+        ] {
+            if let Some(n_cost) = data.get(n_y).and_then(|row| row.get(n_x)) {
+                let n_cost = -cost + n_cost;
+                if n_cost < dist[n_y][n_x] {
+                    queue.push((-n_cost, n_x, n_y));
+                    dist[n_y][n_x] = n_cost;
                 }
             }
         }
     }
-    dist[&goal]
+
+    dist[goal.1][goal.0]
 }
 
-pub fn part_1(input: &Data) -> u32 {
+fn enlarge_map(input: &Data) -> Data {
+    let height = input.len();
+    let width = input[0].len();
+    let mut larger_map = vec![vec![0; width * 5]; height * 5];
+    for y in 0..larger_map.len() {
+        for x in 0..larger_map[0].len() {
+            larger_map[y][x] = {
+                let cost = input[y % height][x % width] + (x / width) as i32 + (y / height) as i32;
+                if cost <= 9 {
+                    cost
+                } else {
+                    cost - 9
+                }
+            };
+        }
+    }
+    larger_map
+}
+
+pub fn part_1(input: &Data) -> i32 {
     shortest_path(input, (0, 0), (input.len() - 1, input[0].len() - 1))
 }
 
-pub fn part_2(input: &Data) -> u32 {
+pub fn part_2(input: &Data) -> i32 {
     let large_map = enlarge_map(input);
     shortest_path(
         &large_map,
         (0, 0),
         (large_map.len() - 1, large_map[0].len() - 1),
     )
-}
-
-fn enlarge_map(input: &Data) -> Vec<Vec<u32>> {
-    let height = input.len();
-    let width = input[0].len();
-    let mut larger_map = vec![vec![0; width * 5]; height * 5];
-    for y in 0..height * 5 {
-        for x in 0..width * 5 {
-            larger_map[y][x] = if x >= width {
-                let mut risk = larger_map[y][x - width] + 1;
-                if risk > 9 {
-                    risk = 1;
-                }
-                risk
-            } else if y >= height {
-                let mut risk = larger_map[y - height][x] + 1;
-                if risk > 9 {
-                    risk = 1;
-                }
-                risk
-            } else {
-                input[y][x]
-            };
-        }
-    }
-    larger_map
 }
 
 #[cfg(test)]
@@ -177,7 +164,7 @@ mod tests {
     pub fn part_2() {
         let input = super::parse(INPUTS);
         let result = super::part_2(&input);
-        assert_eq!(result, 0);
+        assert_eq!(result, 315);
     }
 
     #[test]

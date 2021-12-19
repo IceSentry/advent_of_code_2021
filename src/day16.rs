@@ -23,7 +23,7 @@ impl Operator {
             5 => Operator::GreaterThan,
             6 => Operator::LessThan,
             7 => Operator::EqualtTo,
-            _ => unreachable!(),
+            _ => unreachable!("invalid operator: {}", val),
         }
     }
 }
@@ -86,12 +86,13 @@ impl BitReader {
         Self { data, current: 0 }
     }
 
-    fn advance(&mut self, size: usize) -> Vec<bool> {
-        let mut data = vec![];
-        for _ in 0..size {
-            data.push(self.next());
+    fn advance(&mut self, size: usize) -> usize {
+        let mut acc = 0;
+        let target = self.current + size;
+        while self.current < target {
+            acc = acc << 1 | self.next() as usize;
         }
-        data
+        acc
     }
 
     fn next(&mut self) -> bool {
@@ -101,37 +102,34 @@ impl BitReader {
     }
 }
 
-fn from_binary(bits: &[bool]) -> usize {
-    bits.iter().fold(0, |a, b| a << 1 | *b as usize)
-}
-
 fn parse_packet(reader: &mut BitReader) -> Packet {
-    let version = from_binary(&reader.advance(3));
-    let packet_type = match from_binary(&reader.advance(3)) {
+    let version = reader.advance(3);
+    let packet_type = match reader.advance(3) {
         4 => {
-            let mut packets: Vec<bool> = vec![];
+            let mut acc = 0;
             loop {
                 let is_last_packet = reader.next();
-                packets.extend(reader.advance(4).iter());
+                let val = reader.advance(4);
+                acc = acc << 4 | val;
                 if !is_last_packet {
                     break;
                 }
             }
-            PacketType::Literal(from_binary(&packets))
+            PacketType::Literal(acc)
         }
         op_type => {
             let length_type_id = reader.next();
             let mut packets = vec![];
             match length_type_id {
                 false => {
-                    let length = from_binary(&reader.advance(15));
+                    let length = reader.advance(15);
                     let target = reader.current + length;
                     while reader.current < target {
                         packets.push(parse_packet(reader));
                     }
                 }
                 true => {
-                    let length = from_binary(&reader.advance(11));
+                    let length = reader.advance(11);
                     while packets.len() < length {
                         packets.push(parse_packet(reader));
                     }

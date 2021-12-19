@@ -25,31 +25,31 @@ pub fn parse(input: &str) -> Data {
 fn solve(input: &Data, iterations: usize) -> usize {
     let (template, rules) = input;
 
-    let mut pair_count: HashMap<Pair, usize> = HashMap::new();
-    let mut letter_count: HashMap<char, usize> = HashMap::new();
-    for c in template {
-        *letter_count.entry(*c).or_insert(0) += 1;
-    }
+    let mut pairs: HashMap<Pair, usize> = HashMap::new();
     for pair in template.windows(2) {
-        *pair_count.entry((pair[0], pair[1])).or_insert(0) += 1;
+        *pairs.entry((pair[0], pair[1])).or_insert(0) += 1;
+    }
+    let mut letters: HashMap<char, usize> = HashMap::new();
+    for letter in template {
+        *letters.entry(*letter).or_insert(0) += 1;
     }
 
     for _ in 0..iterations {
-        for (pair, count) in pair_count.clone() {
+        for (pair, count) in pairs.clone() {
             let (pair0, pair1) = rules.get(&pair).expect("pair not found");
-            *pair_count.entry(*pair0).or_insert(0) += count;
-            *pair_count.entry(*pair1).or_insert(0) += count;
-            *pair_count.entry(pair).or_insert(0) -= count;
+            *pairs.entry(*pair0).or_insert(0) += count;
+            *pairs.entry(*pair1).or_insert(0) += count;
+            *pairs.entry(pair).or_insert(0) -= count;
 
-            *letter_count.entry(pair0.1).or_insert(0) += count;
+            // (AB -> C) <=> (AC, CB)
+            // A and B have already been counted and we only need to count C once
+            *letters.entry(pair0.1).or_insert(0) += count;
         }
     }
-    let max = letter_count.iter().max_by_key(|(_, v)| *v).unwrap();
-    let min = letter_count.iter().min_by_key(|(_, v)| *v).unwrap();
 
-    // println!("max: {:?}", max);
-    // println!("min: {:?}", min);
-    max.1 - min.1
+    let max = letters.values().max().unwrap();
+    let min = letters.values().min().unwrap();
+    max - min
 }
 
 pub fn part_1(input: &Data) -> usize {

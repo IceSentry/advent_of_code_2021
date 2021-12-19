@@ -1,8 +1,6 @@
-use anyhow::{bail, Context, Result};
+use bitvec::{order::Msb0, prelude::BitVec};
 
-type Data = Vec<Packet>;
-
-// TODO, this could probably be refactored to be one big enum with Literal just being an operator
+type Data = Packet;
 
 #[derive(Debug, PartialEq)]
 enum Operator {
@@ -63,226 +61,147 @@ impl Packet {
         match &self.packet_type {
             PacketType::Literal(x) => *x,
             PacketType::Operator(operator, packets) => {
-                let packets = packets.iter().map(|p| p.evaluate());
+                let mut packets = packets.iter().map(|p| p.evaluate());
                 match operator {
                     Operator::Sum => packets.sum(),
                     Operator::Product => packets.product(),
-                    Operator::Min => packets.min().expect("min not found"),
-                    Operator::Max => packets.max().expect("max not found"),
-                    Operator::GreaterThan => {
-                        let packets: Vec<usize> = packets.collect();
-                        assert!(packets.len() == 2);
-                        (packets[0] > packets[1]) as usize
-                    }
-                    Operator::LessThan => {
-                        let packets: Vec<usize> = packets.collect();
-                        assert!(packets.len() == 2);
-                        (packets[0] < packets[1]) as usize
-                    }
-                    Operator::EqualtTo => {
-                        let packets: Vec<usize> = packets.collect();
-                        assert!(packets.len() == 2);
-                        (packets[0] == packets[1]) as usize
-                    }
+                    Operator::Min => packets.min().unwrap(),
+                    Operator::Max => packets.max().unwrap(),
+                    Operator::GreaterThan => (packets.next() > packets.next()) as usize,
+                    Operator::LessThan => (packets.next() < packets.next()) as usize,
+                    Operator::EqualtTo => (packets.next() == packets.next()) as usize,
                 }
             }
         }
     }
 }
 
-struct PacketParser {
-    data: Vec<char>,
+struct BitReader {
+    data: BitVec<Msb0, u8>,
     current: usize,
 }
 
-impl PacketParser {
-    fn new(data: Vec<char>) -> Self {
+impl BitReader {
+    fn new(data: BitVec<Msb0, u8>) -> Self {
         Self { data, current: 0 }
     }
 
-    fn parse(
-        &mut self,
-        scope_length: Option<usize>,
-        scope_packets_limit: Option<usize>,
-    ) -> Result<Vec<Packet>> {
-        // println!("parse: {:?}", self.data[self.current..].iter());
-        let mut packets = vec![];
-        while !self.is_last_zeroes() {
-            if let Some(scope_length) = scope_length {
-                if self.current >= scope_length {
-                    break;
-                }
-            }
-            if let Some(scope_packets_limit) = scope_packets_limit {
-                if packets.len() == scope_packets_limit {
-                    break;
-                }
-            }
-
-            let version = from_binary(&self.advance(3)?);
-            let packet_type = match from_binary(&self.advance(3)?) {
-                // Literal
-                4 => {
-                    let mut packets: Vec<char> = vec![];
-                    loop {
-                        let first = *self.next()?;
-                        packets.extend(self.advance(4)?.iter());
-                        if first == '0' {
-                            break;
-                        }
-                    }
-                    PacketType::Literal(from_binary(&packets))
-                }
-                //Operator
-                op_type => {
-                    let length_type_id = self.next()?;
-                    // println!("length_type_id: {}", length_type_id);
-
-                    // pass these constrain to parse() ???
-                    PacketType::Operator(
-                        Operator::from(op_type),
-                        match length_type_id {
-                            '0' => {
-                                let length = from_binary(&self.advance(15)?);
-                                // scope_end = current + length
-                                self.parse(Some(self.current + length), None)?
-                            }
-                            '1' => {
-                                let length = from_binary(&self.advance(11)?);
-                                // packets.len() == scope_packets_length
-                                self.parse(None, Some(length))?
-                            }
-                            _ => unreachable!(),
-                        },
-                    )
-                }
-            };
-            let packet = Packet::new(version, packet_type);
-            // println!("{:?}", packet);
-            packets.push(packet);
-        }
-
-        Ok(packets)
-    }
-
-    fn advance(&mut self, size: usize) -> Result<Vec<char>> {
+    fn advance(&mut self, size: usize) -> Vec<bool> {
         let mut data = vec![];
         for _ in 0..size {
-            data.push(*self.next().context(format!(
-                "size {} is longer than data {}",
-                size,
-                data.len()
-            ))?);
+            data.push(self.next());
         }
-        Ok(data)
+        data
     }
 
-    fn next(&mut self) -> Result<&char> {
-        if !self.is_at_end() {
-            self.current += 1;
-        } else {
-            bail!("Reached the end unexpectedly")
-        }
-        Ok(self.previous())
-    }
-
-    fn previous(&self) -> &char {
-        &self.data[self.current - 1]
-    }
-
-    fn is_at_end(&self) -> bool {
-        self.current >= self.data.len()
-    }
-
-    fn is_last_zeroes(&self) -> bool {
-        self.data[self.current..].iter().all(|bit| *bit == '0')
-    }
-
-    fn _peek(&self) -> &char {
-        &self.data[self.current]
+    fn next(&mut self) -> bool {
+        let value = self.data[self.current];
+        self.current += 1;
+        value
     }
 }
 
-fn from_binary(chars: &[char]) -> usize {
-    usize::from_str_radix(&String::from_iter(chars), 2).expect("Failed to parse binary")
+fn from_binary(bits: &[bool]) -> usize {
+    bits.iter().fold(0, |a, b| a << 1 | *b as usize)
+}
+
+fn parse_packet(reader: &mut BitReader) -> Packet {
+    let version = from_binary(&reader.advance(3));
+    let packet_type = match from_binary(&reader.advance(3)) {
+        4 => {
+            let mut packets: Vec<bool> = vec![];
+            loop {
+                let is_last_packet = reader.next();
+                packets.extend(reader.advance(4).iter());
+                if !is_last_packet {
+                    break;
+                }
+            }
+            PacketType::Literal(from_binary(&packets))
+        }
+        op_type => {
+            let length_type_id = reader.next();
+            let mut packets = vec![];
+            match length_type_id {
+                false => {
+                    let length = from_binary(&reader.advance(15));
+                    let target = reader.current + length;
+                    while reader.current < target {
+                        packets.push(parse_packet(reader));
+                    }
+                }
+                true => {
+                    let length = from_binary(&reader.advance(11));
+                    while packets.len() < length {
+                        packets.push(parse_packet(reader));
+                    }
+                }
+            };
+            PacketType::Operator(Operator::from(op_type), packets)
+        }
+    };
+    Packet::new(version, packet_type)
 }
 
 pub fn parse(input: &str) -> Data {
-    let binary: String = input
-        .chars()
-        .flat_map(|c| c.to_digit(16))
-        .map(|d| format!("{:0>4b}", d))
-        .collect();
-    let mut parser = PacketParser::new(binary.chars().collect());
-    parser.parse(None, None).expect("Failed to parse")
+    let input = input.trim_end();
+    let bits = BitVec::from_iter((0..input.len()).step_by(2).map(|i| {
+        u8::from_str_radix(&input[i..i + 2], 16)
+            .unwrap_or_else(|_| panic!("trying to parse {}", &input[i..i + 2]))
+    }));
+    parse_packet(&mut BitReader::new(bits))
 }
 
 pub fn part_1(input: &Data) -> usize {
-    assert!(input.len() == 1);
-    input[0].version_sum()
+    input.version_sum()
 }
 
 pub fn part_2(input: &Data) -> usize {
-    assert!(input.len() == 1);
-    input[0].evaluate()
+    input.evaluate()
 }
 
 #[cfg(test)]
 mod tests {
-    use indoc::indoc;
-
-    use crate::day16::{Operator, Packet, PacketParser, PacketType};
-
     #[test]
     pub fn parse() {
-        let result = super::parse("D2FE28");
-        assert_eq!(result, vec![Packet::new(6, PacketType::Literal(2021))]);
+        use super::{parse, Operator, Packet, PacketType};
 
-        let mut parser = PacketParser::new("11010001010".chars().collect());
-        let result = parser.parse(None, None).expect("Failed to parse");
-        assert_eq!(result, vec![Packet::new(6, PacketType::Literal(10))]);
+        assert_eq!(parse("D2FE28"), Packet::new(6, PacketType::Literal(2021)));
 
-        let mut parser = PacketParser::new("0101001000100100".chars().collect());
-        let result = parser.parse(None, None).expect("Failed to parse");
-        assert_eq!(result, vec![Packet::new(2, PacketType::Literal(20))]);
-
-        let result = super::parse("38006F45291200");
         assert_eq!(
-            result,
-            vec![Packet {
-                version: 1,
-                packet_type: PacketType::Operator(
+            parse("38006F45291200"),
+            Packet::new(
+                1,
+                PacketType::Operator(
                     Operator::LessThan,
                     vec![
                         Packet::new(6, PacketType::Literal(10)),
-                        Packet::new(2, PacketType::Literal(20))
-                    ]
-                )
-            }]
+                        Packet::new(2, PacketType::Literal(20)),
+                    ],
+                ),
+            )
         );
 
-        let result = super::parse("EE00D40C823060");
         assert_eq!(
-            result,
-            vec![Packet {
-                version: 7,
-                packet_type: PacketType::Operator(
+            parse("EE00D40C823060"),
+            Packet::new(
+                7,
+                PacketType::Operator(
                     Operator::Max,
                     vec![
                         Packet::new(2, PacketType::Literal(1)),
                         Packet::new(4, PacketType::Literal(2)),
-                        Packet::new(1, PacketType::Literal(3))
-                    ]
-                )
-            }]
+                        Packet::new(1, PacketType::Literal(3)),
+                    ],
+                ),
+            )
         );
 
-        let result = super::parse("8A004A801A8002F478");
         assert_eq!(
-            result,
-            vec![Packet {
-                version: 4,
-                packet_type: PacketType::Operator(
+            parse("8A004A801A8002F478"),
+            Packet::new(
+                4,
+                PacketType::Operator(
                     Operator::Min,
                     vec![Packet::new(
                         1,
@@ -292,98 +211,69 @@ mod tests {
                                 5,
                                 PacketType::Operator(
                                     Operator::Min,
-                                    vec![Packet::new(6, PacketType::Literal(15))]
-                                )
-                            )]
-                        )
-                    ),]
-                )
-            }]
+                                    vec![Packet::new(6, PacketType::Literal(15))],
+                                ),
+                            )],
+                        ),
+                    )],
+                ),
+            )
         );
 
-        let result = super::parse("620080001611562C8802118E34");
-        let expected = vec![Packet {
-            version: 3,
-            packet_type: PacketType::Operator(
-                Operator::Sum,
-                vec![
-                    Packet::new(
-                        0,
-                        PacketType::Operator(
-                            Operator::Sum,
-                            vec![
-                                Packet::new(0, PacketType::Literal(10)),
-                                Packet::new(5, PacketType::Literal(11)),
-                            ],
+        assert_eq!(
+            parse("620080001611562C8802118E34"),
+            Packet::new(
+                3,
+                PacketType::Operator(
+                    Operator::Sum,
+                    vec![
+                        Packet::new(
+                            0,
+                            PacketType::Operator(
+                                Operator::Sum,
+                                vec![
+                                    Packet::new(0, PacketType::Literal(10)),
+                                    Packet::new(5, PacketType::Literal(11)),
+                                ],
+                            ),
                         ),
-                    ),
-                    Packet::new(
-                        1,
-                        PacketType::Operator(
-                            Operator::Sum,
-                            vec![
-                                Packet::new(0, PacketType::Literal(12)),
-                                Packet::new(3, PacketType::Literal(13)),
-                            ],
+                        Packet::new(
+                            1,
+                            PacketType::Operator(
+                                Operator::Sum,
+                                vec![
+                                    Packet::new(0, PacketType::Literal(12)),
+                                    Packet::new(3, PacketType::Literal(13)),
+                                ],
+                            ),
                         ),
-                    ),
-                ],
-            ),
-        }];
-        assert_eq!(result, expected);
+                    ],
+                ),
+            )
+        );
     }
 
     #[test]
     pub fn part_1() {
-        let input = super::parse("8A004A801A8002F478");
-        let result = super::part_1(&input);
-        assert_eq!(result, 16);
+        use super::{parse, part_1};
 
-        let input = super::parse("620080001611562C8802118E34");
-        let result = super::part_1(&input);
-        assert_eq!(result, 12);
-
-        let input = super::parse("C0015000016115A2E0802F182340");
-        let result = super::part_1(&input);
-        assert_eq!(result, 23);
-
-        let input = super::parse("A0016C880162017C3686B18A3D4780");
-        let result = super::part_1(&input);
-        assert_eq!(result, 31);
+        assert_eq!(part_1(&parse("8A004A801A8002F478")), 16);
+        assert_eq!(part_1(&parse("620080001611562C8802118E34")), 12);
+        assert_eq!(part_1(&parse("C0015000016115A2E0802F182340")), 23);
+        assert_eq!(part_1(&parse("A0016C880162017C3686B18A3D4780")), 31);
     }
 
     #[test]
     pub fn part_2() {
-        let input = super::parse("C200B40A82");
-        let result = super::part_2(&input);
-        assert_eq!(result, 3);
+        use super::{parse, part_2};
 
-        let input = super::parse("04005AC33890");
-        let result = super::part_2(&input);
-        assert_eq!(result, 54);
-
-        let input = super::parse("880086C3E88112");
-        let result = super::part_2(&input);
-        assert_eq!(result, 7);
-
-        let input = super::parse("CE00C43D881120");
-        let result = super::part_2(&input);
-        assert_eq!(result, 9);
-
-        let input = super::parse("D8005AC2A8F0");
-        let result = super::part_2(&input);
-        assert_eq!(result, 1);
-
-        let input = super::parse("F600BC2D8F");
-        let result = super::part_2(&input);
-        assert_eq!(result, 0);
-
-        let input = super::parse("9C005AC2F8F0");
-        let result = super::part_2(&input);
-        assert_eq!(result, 0);
-
-        let input = super::parse("9C0141080250320F1802104A08");
-        let result = super::part_2(&input);
-        assert_eq!(result, 1);
+        assert_eq!(part_2(&parse("C200B40A82")), 3);
+        assert_eq!(part_2(&parse("04005AC33890")), 54);
+        assert_eq!(part_2(&parse("880086C3E88112")), 7);
+        assert_eq!(part_2(&parse("CE00C43D881120")), 9);
+        assert_eq!(part_2(&parse("D8005AC2A8F0")), 1);
+        assert_eq!(part_2(&parse("F600BC2D8F")), 0);
+        assert_eq!(part_2(&parse("9C005AC2F8F0")), 0);
+        assert_eq!(part_2(&parse("9C0141080250320F1802104A08")), 1);
     }
 }

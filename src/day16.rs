@@ -1,7 +1,5 @@
 use bitvec::{order::Msb0, prelude::BitVec};
 
-type Data = Packet;
-
 #[derive(Debug, PartialEq)]
 enum Operator {
     Sum,
@@ -47,33 +45,6 @@ impl Packet {
             packet_type,
         }
     }
-
-    fn version_sum(&self) -> usize {
-        match &self.packet_type {
-            PacketType::Literal(_) => self.version,
-            PacketType::Operator(_op, packets) => {
-                self.version + packets.iter().map(|p| p.version_sum()).sum::<usize>()
-            }
-        }
-    }
-
-    fn evaluate(&self) -> usize {
-        match &self.packet_type {
-            PacketType::Literal(x) => *x,
-            PacketType::Operator(operator, packets) => {
-                let mut packets = packets.iter().map(|p| p.evaluate());
-                match operator {
-                    Operator::Sum => packets.sum(),
-                    Operator::Product => packets.product(),
-                    Operator::Min => packets.min().unwrap(),
-                    Operator::Max => packets.max().unwrap(),
-                    Operator::GreaterThan => (packets.next() > packets.next()) as usize,
-                    Operator::LessThan => (packets.next() < packets.next()) as usize,
-                    Operator::EqualtTo => (packets.next() == packets.next()) as usize,
-                }
-            }
-        }
-    }
 }
 
 struct BitReader {
@@ -82,8 +53,15 @@ struct BitReader {
 }
 
 impl BitReader {
-    fn new(data: BitVec<Msb0, u8>) -> Self {
-        Self { data, current: 0 }
+    fn from_hex_string(str: &str) -> Self {
+        let bits = BitVec::from_iter((0..str.len()).step_by(2).map(|i| {
+            u8::from_str_radix(&str[i..=i + 1], 16)
+                .unwrap_or_else(|_| panic!("trying to parse {}", &str[i..i + 2]))
+        }));
+        Self {
+            data: bits,
+            current: 0,
+        }
     }
 
     fn advance(&mut self, size: usize) -> usize {
@@ -96,9 +74,8 @@ impl BitReader {
     }
 
     fn next(&mut self) -> bool {
-        let value = self.data[self.current];
         self.current += 1;
-        value
+        self.data[self.current - 1]
     }
 }
 
@@ -117,7 +94,7 @@ fn parse_packet(reader: &mut BitReader) -> Packet {
             }
             PacketType::Literal(acc)
         }
-        op_type => {
+        operator => {
             let length_type_id = reader.next();
             let mut packets = vec![];
             match length_type_id {
@@ -135,27 +112,42 @@ fn parse_packet(reader: &mut BitReader) -> Packet {
                     }
                 }
             };
-            PacketType::Operator(Operator::from(op_type), packets)
+            PacketType::Operator(Operator::from(operator), packets)
         }
     };
     Packet::new(version, packet_type)
 }
 
-pub fn parse(input: &str) -> Data {
+pub fn parse(input: &str) -> Packet {
     let input = input.trim_end();
-    let bits = BitVec::from_iter((0..input.len()).step_by(2).map(|i| {
-        u8::from_str_radix(&input[i..i + 2], 16)
-            .unwrap_or_else(|_| panic!("trying to parse {}", &input[i..i + 2]))
-    }));
-    parse_packet(&mut BitReader::new(bits))
+    parse_packet(&mut BitReader::from_hex_string(input))
 }
 
-pub fn part_1(input: &Data) -> usize {
-    input.version_sum()
+pub fn part_1(packet: &Packet) -> usize {
+    match &packet.packet_type {
+        PacketType::Literal(_) => packet.version,
+        PacketType::Operator(_op, packets) => {
+            packet.version + packets.iter().map(part_1).sum::<usize>()
+        }
+    }
 }
 
-pub fn part_2(input: &Data) -> usize {
-    input.evaluate()
+pub fn part_2(packet: &Packet) -> usize {
+    match &packet.packet_type {
+        PacketType::Literal(x) => *x,
+        PacketType::Operator(operator, packets) => {
+            let mut packets = packets.iter().map(part_2);
+            match operator {
+                Operator::Sum => packets.sum(),
+                Operator::Product => packets.product(),
+                Operator::Min => packets.min().unwrap(),
+                Operator::Max => packets.max().unwrap(),
+                Operator::GreaterThan => (packets.next() > packets.next()) as usize,
+                Operator::LessThan => (packets.next() < packets.next()) as usize,
+                Operator::EqualtTo => (packets.next() == packets.next()) as usize,
+            }
+        }
+    }
 }
 
 #[cfg(test)]

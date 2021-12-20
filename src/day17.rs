@@ -7,22 +7,22 @@ pub fn parse(input: &str) -> TargetArea {
     scan!("target area: x={}..{}, y={}..{}" <- input).expect("failed to parse")
 }
 
-fn simulate(velocity: &mut (i32, i32), target_area: &TargetArea) -> Option<i32> {
-    let mut probe = (0, 0);
+fn simulate(start_velocity: (i32, i32), target_area: &TargetArea) -> Option<i32> {
+    let (mut x, mut y) = (0, 0);
+    let mut velocity = start_velocity;
     let mut max_height = i32::MIN;
-    while probe.0 < target_area.1 && probe.1 > target_area.2 {
-        probe.0 += velocity.0;
-        probe.1 += velocity.1;
+    while x < target_area.1 && y > target_area.2 {
+        x += velocity.0;
+        y += velocity.1;
 
         velocity.0 -= velocity.0.signum();
         velocity.1 -= 1;
 
-        if probe.1 > max_height {
-            max_height = probe.1;
+        if y > max_height {
+            max_height = y;
         }
 
-        if (probe.0 >= target_area.0 && probe.0 <= target_area.1)
-            && (probe.1 >= target_area.2 && probe.1 <= target_area.3)
+        if (x >= target_area.0 && x <= target_area.1) && (y >= target_area.2 && y <= target_area.3)
         {
             return Some(max_height);
         }
@@ -30,29 +30,29 @@ fn simulate(velocity: &mut (i32, i32), target_area: &TargetArea) -> Option<i32> 
     None
 }
 
-pub fn part_1(target_area: &TargetArea) -> usize {
+fn find(target_area: &TargetArea) -> (usize, usize) {
     let mut max_height = i32::MIN;
-    for y in target_area.2..-target_area.2 {
-        for x in 1..=target_area.1 {
-            if let Some(max_h) = simulate(&mut (x, y), target_area) {
-                if max_h > max_height {
-                    max_height = max_h;
-                }
-            }
-        }
-    }
-    max_height as usize
-}
-
-pub fn part_2(target_area: &TargetArea) -> usize {
     let mut count = 0;
     for y in target_area.2..-target_area.2 {
         for x in 1..=target_area.1 {
-            if simulate(&mut (x, y), target_area).is_some() {
+            if let Some(max_h) = simulate((x, y), target_area) {
+                if max_h > max_height {
+                    max_height = max_h;
+                }
                 count += 1;
             }
         }
     }
+    (max_height as usize, count)
+}
+
+pub fn part_1(target_area: &TargetArea) -> usize {
+    let (max_height, _) = find(target_area);
+    max_height
+}
+
+pub fn part_2(target_area: &TargetArea) -> usize {
+    let (_, count) = find(target_area);
     count
 }
 
@@ -65,25 +65,16 @@ mod tests {
     "};
 
     #[test]
-    pub fn step() {
+    pub fn simulate() {
+        use super::simulate;
         let target = super::parse(INPUTS);
-        let result = super::simulate(&mut (7, 2), &target);
-        assert_eq!(result, Some(3));
 
-        let result = super::simulate(&mut (6, 3), &target);
-        assert_eq!(result, Some(6));
-
-        let result = super::simulate(&mut (9, 0), &target);
-        assert_eq!(result, Some(0));
-
-        let result = super::simulate(&mut (17, -4), &target);
-        assert_eq!(result, None);
-
-        let result = super::simulate(&mut (6, 9), &target);
-        assert_eq!(result, Some(45));
-
-        let result = super::simulate(&mut (6, 0), &target);
-        assert_eq!(result, Some(0));
+        assert_eq!(simulate((7, 2), &target), Some(3));
+        assert_eq!(simulate((6, 3), &target), Some(6));
+        assert_eq!(simulate((9, 0), &target), Some(0));
+        assert_eq!(simulate((17, -4), &target), None);
+        assert_eq!(simulate((6, 9), &target), Some(45));
+        assert_eq!(simulate((6, 0), &target), Some(0));
     }
 
     #[test]

@@ -1,4 +1,4 @@
-use itertools::Itertools;
+use std::cell::RefCell;
 
 type Data = Vec<SnaifishNumber>;
 
@@ -142,6 +142,7 @@ impl std::fmt::Display for Tree {
     }
 }
 
+#[allow(unused)]
 impl Tree {
     fn parse<I>(chars: &mut I) -> Self
     where
@@ -201,7 +202,7 @@ pub fn parse(input: &str) -> Data {
 pub fn part_1(input: &Data) -> usize {
     let mut result = input.first().unwrap().clone();
     for tree in input.iter().skip(1) {
-        result = result.add(tree);
+        result = result.add(tree.clone());
         result.reduce();
     }
     result.magnitude()
@@ -212,7 +213,7 @@ pub fn part_2(input: &Data) -> usize {
     for a in input.iter() {
         for b in input.iter() {
             if a != b {
-                let mut result = a.add(b);
+                let mut result = a.clone().add(b.clone());
                 result.reduce();
                 max = max.max(result.magnitude())
             }
@@ -280,8 +281,12 @@ mod tests {
     #[test]
     pub fn add() {
         let assert_add = |a, b, expected| {
-            let result = SnaifishNumber::parse(a).add(&SnaifishNumber::parse(b));
-            assert_eq!(result, SnaifishNumber::parse(expected));
+            {
+                let a = SnaifishNumber::parse(a);
+                let b = SnaifishNumber::parse(b);
+                let result = a.add(b);
+                assert_eq!(result, SnaifishNumber::parse(expected));
+            }
 
             let a = Tree::parse(&mut a.chars());
             let b = Tree::parse(&mut b.chars());
@@ -357,8 +362,8 @@ mod tests {
         let assert_add = |input, expected| {
             let input = super::parse(input);
             let mut result = input.first().unwrap().clone();
-            for tree in input.iter().cloned().skip(1) {
-                result = result.add(&tree);
+            for tree in input.iter().skip(1) {
+                result = result.add(tree.clone());
                 result.reduce();
             }
             assert_eq!(result, SnaifishNumber::parse(expected));
@@ -439,7 +444,7 @@ mod tests {
     #[test]
     pub fn magnitude() {
         let assert_magnitude = |input, expected| {
-            let mut input = SnaifishNumber::parse(input);
+            let input = SnaifishNumber::parse(input);
             assert_eq!(input.magnitude(), expected);
         };
         assert_magnitude("[[1,2],[[3,4],5]]", 143);

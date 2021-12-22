@@ -106,7 +106,7 @@ impl SnaifishNumber {
         false
     }
 
-    fn magnitude(&mut self) -> usize {
+    fn magnitude(&self) -> usize {
         let mut values = self.values.clone();
         let mut depths = self.depths.clone();
         while values.len() > 1 {
@@ -127,13 +127,80 @@ impl SnaifishNumber {
     }
 }
 
+#[derive(Debug, Clone)]
+enum Tree {
+    Number(usize),
+    Pair(RefCell<Box<Tree>>, RefCell<Box<Tree>>),
+}
+
+impl std::fmt::Display for Tree {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Number(arg0) => write!(f, "{}", arg0),
+            Self::Pair(arg0, arg1) => write!(f, "[{},{}]", arg0.borrow(), arg1.borrow(),),
+        }
+    }
+}
+
+impl Tree {
+    fn parse<I>(chars: &mut I) -> Self
+    where
+        I: Iterator<Item = char>,
+    {
+        match chars.next() {
+            Some('[') => Tree::Pair(
+                RefCell::new(Box::new(Tree::parse(chars))),
+                RefCell::new(Box::new(Tree::parse(chars))),
+            ),
+            Some(',' | ']') => Tree::parse(chars),
+            c => {
+                let mut c = c;
+                let mut number = String::new();
+                loop {
+                    match c {
+                        Some(c) if c.is_digit(10) => number = format!("{}{}", number, c),
+                        _ => {
+                            let result = number
+                                .parse()
+                                .unwrap_or_else(|_| panic!("failed to parse number {}", number));
+                            return Tree::Number(result);
+                        }
+                    }
+                    c = chars.next();
+                }
+            }
+        }
+    }
+
+    fn add(&self, other: &Tree) -> Tree {
+        Tree::Pair(
+            RefCell::new(Box::new(self.clone())),
+            RefCell::new(Box::new(other.clone())),
+        )
+    }
+
+    fn explode(&mut self, depth: usize) -> bool {
+        if depth > 4 {
+            // TODO explode!
+            true
+        } else {
+            match self {
+                Tree::Number(_) => false,
+                Tree::Pair(left, right) => {
+                    left.borrow_mut().explode(depth + 1) || right.borrow_mut().explode(depth + 1)
+                }
+            }
+        }
+    }
+}
+
 pub fn parse(input: &str) -> Data {
     input.lines().map(SnaifishNumber::parse).collect()
 }
 
 pub fn part_1(input: &Data) -> usize {
     let mut result = input.first().unwrap().clone();
-    for tree in input.iter().cloned().skip(1) {
+    for tree in input.iter().skip(1) {
         result = result.add(tree);
         result.reduce();
     }
@@ -145,7 +212,7 @@ pub fn part_2(input: &Data) -> usize {
     for a in input.iter() {
         for b in input.iter() {
             if a != b {
-                let mut result = a.clone().add(b.clone());
+                let mut result = a.add(b);
                 result.reduce();
                 max = max.max(result.magnitude())
             }
@@ -158,7 +225,7 @@ pub fn part_2(input: &Data) -> usize {
 mod tests {
     use indoc::indoc;
 
-    use super::SnaifishNumber;
+    use super::{SnaifishNumber, Tree};
 
     const INPUTS: &str = indoc! {"
         [[[0,[5,8]],[[1,7],[9,6]]],[[4,[1,2]],[[1,4],2]]]
@@ -197,12 +264,29 @@ mod tests {
     }
 
     #[test]
+    pub fn parse_tree() {
+        let assert_parse = |input: &str| {
+            let tree = super::Tree::parse(&mut input.chars());
+            assert_eq!(format!("{}", tree), input);
+        };
+
+        assert_parse("12");
+        assert_parse("[0,0]");
+        assert_parse("[10,0]");
+        assert_parse("[[1,2],[3,4]]");
+        assert_parse("[[3,[2,[1,[7,3]]]],[6,[5,[4,[3,2]]]]]");
+    }
+
+    #[test]
     pub fn add() {
         let assert_add = |a, b, expected| {
-            let a = SnaifishNumber::parse(a);
-            let b = SnaifishNumber::parse(b);
-            let result = a.add(b);
+            let result = SnaifishNumber::parse(a).add(&SnaifishNumber::parse(b));
             assert_eq!(result, SnaifishNumber::parse(expected));
+
+            let a = Tree::parse(&mut a.chars());
+            let b = Tree::parse(&mut b.chars());
+            let result = a.add(&b);
+            assert_eq!(format!("{}", result), expected);
         };
 
         assert_add("[1,2]", "[[3,4],5]", "[[1,2],[[3,4],5]]");
@@ -223,9 +307,16 @@ mod tests {
     #[test]
     pub fn explode() {
         let assert_explode = |input, expected| {
-            let mut input = SnaifishNumber::parse(input);
-            input.explode();
-            assert_eq!(input, SnaifishNumber::parse(expected));
+            {
+                let mut input = SnaifishNumber::parse(input);
+                input.explode();
+                assert_eq!(input, SnaifishNumber::parse(expected));
+            }
+            {
+                let mut tree = Tree::parse(&mut input.chars());
+                println!("{}", tree);
+                assert!(tree.explode(0));
+            }
         };
 
         assert_explode("[[[[[9,8],1],2],3],4]", "[[[[0,9],2],3],4]");
@@ -267,7 +358,7 @@ mod tests {
             let input = super::parse(input);
             let mut result = input.first().unwrap().clone();
             for tree in input.iter().cloned().skip(1) {
-                result = result.add(tree);
+                result = result.add(&tree);
                 result.reduce();
             }
             assert_eq!(result, SnaifishNumber::parse(expected));

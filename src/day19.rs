@@ -71,11 +71,6 @@ fn scanner_distances(scanner: &HashSet<IVec3>) -> HashMap<IVec3, HashSet<IVec3>>
     map
 }
 
-/// Applies the offset to all beacons in a scanner
-fn apply_offset(scanner: &HashSet<IVec3>, offset: IVec3) -> HashSet<IVec3> {
-    scanner.iter().map(|beacon| *beacon - offset).collect()
-}
-
 fn find_match(
     rotated_distances: &HashMap<IVec3, HashSet<IVec3>>,
     beacons_distances: &HashMap<IVec3, HashSet<IVec3>>,

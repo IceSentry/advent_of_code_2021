@@ -8,27 +8,54 @@ type Data = (Vec<IVec3>, HashSet<IVec3>);
 const MIN_MATCHING_BEACONS: usize = 3;
 
 lazy_static::lazy_static! {
-    static ref ALL_ROTATIONS: Vec<IVec3> = {
-        let mut axes_rotated_set = HashSet::new();
-        let mut rotations = vec![];
-        for x in 0..=3 {
-            for y in 0..=3 {
-                for z in 0..=3 {
-                    let rot = IVec3::new(x, y, z);
-                    let axes_rotated = [
-                        rotate(IVec3::new(1, 0, 0), &rot),
-                        rotate(IVec3::new(0, 1, 0), &rot),
-                        rotate(IVec3::new(0, 0, 1), &rot),
-                    ];
-                    if !axes_rotated_set.contains(&axes_rotated) {
-                        axes_rotated_set.insert(axes_rotated);
-                        rotations.push(rot);
-                    }
-                }
-            }
-        }
-        rotations
-    };
+    static ref ALL_ROTATIONS: Vec<IVec3> = vec![
+        IVec3::new(0, 0, 0),
+        IVec3::new(0, 0, 1),
+        IVec3::new(0, 0, 2),
+        IVec3::new(0, 0, 3),
+        IVec3::new(0, 1, 0),
+        IVec3::new(0, 1, 1),
+        IVec3::new(0, 1, 2),
+        IVec3::new(0, 1, 3),
+        IVec3::new(0, 2, 0),
+        IVec3::new(0, 2, 1),
+        IVec3::new(0, 2, 2),
+        IVec3::new(0, 2, 3),
+        IVec3::new(0, 3, 0),
+        IVec3::new(0, 3, 1),
+        IVec3::new(0, 3, 2),
+        IVec3::new(0, 3, 3),
+        IVec3::new(1, 0, 0),
+        IVec3::new(1, 0, 1),
+        IVec3::new(1, 0, 2),
+        IVec3::new(1, 0, 3),
+        IVec3::new(1, 2, 0),
+        IVec3::new(1, 2, 1),
+        IVec3::new(1, 2, 2),
+        IVec3::new(1, 2, 3)
+    ];
+    // computed by doing:
+    // static ref ALL_ROTATIONS: Vec<IVec3> = {
+    //     let mut axes_rotated_set = HashSet::new();
+    //     let mut rotations = vec![];
+    //     for x in 0..=3 {
+    //         for y in 0..=3 {
+    //             for z in 0..=3 {
+    //                 let rot = IVec3::new(x, y, z);
+    //                 let axes_rotated = [
+    //                     rotate(IVec3::new(1, 0, 0),&rot),
+    //                     rotate(IVec3::new(0, 1, 0), &rot),
+    //                     rotate(IVec3::new(0, 0, 1), &rot),
+    //                 ];
+    //                 if !axes_rotated_set.contains(&axes_rotated) {
+    //                     axes_rotated_set.insert(axes_rotated);
+    //                     rotations.push(rot);
+    //                 }
+    //             }
+    //         }
+    //     }
+    //     rotations
+    // };
 }
 
 // Rotate a beacon around the given axis
@@ -307,6 +334,8 @@ mod tests {
 
     #[test]
     pub fn all_rotations() {
+        println!("{:?}", super::ALL_ROTATIONS.iter().collect::<Vec<_>>());
+
         assert_eq!(super::ALL_ROTATIONS.len(), 24);
     }
 

@@ -1,7 +1,11 @@
 use glam::IVec3;
 use hashbrown::{HashMap, HashSet};
 
-type Data = Vec<HashSet<IVec3>>;
+type Data = (Vec<IVec3>, HashSet<IVec3>);
+
+// The description mentions needing 12, but 3 is enough
+// to reconstruct the grid properly for the examples and the given input
+const MIN_MATCHING_BEACONS: usize = 3;
 
 lazy_static::lazy_static! {
     static ref ALL_ROTATIONS: Vec<IVec3> = {
@@ -27,22 +31,9 @@ lazy_static::lazy_static! {
     };
 }
 
-pub fn parse(input: &str) -> Data {
-    input
-        .split("\n\n")
-        .map(|scanner| {
-            scanner
-                .lines()
-                .skip(1)
-                .map(|l| l.split(',').flat_map(|val| val.parse()).collect())
-                .map(|v: Vec<i32>| IVec3::new(v[0], v[1], v[2]))
-                .collect()
-        })
-        .collect()
-}
-
-fn rotate(point: IVec3, axis_rotations: &IVec3) -> IVec3 {
-    let mut out = point;
+// Rotate a beacon around the given axis
+fn rotate(beacon: IVec3, axis_rotations: &IVec3) -> IVec3 {
+    let mut out = beacon;
     for _ in 0..axis_rotations.x {
         let prev_z = out.z;
         out.z = out.y;
@@ -61,10 +52,17 @@ fn rotate(point: IVec3, axis_rotations: &IVec3) -> IVec3 {
     out
 }
 
-fn rotate_scanner(vec: &HashSet<IVec3>, rot: &IVec3) -> HashSet<IVec3> {
-    vec.iter().map(|p| rotate(*p, rot)).collect()
+/// Rotates all beacons in the scanner
+fn rotate_scanner(scanner: &HashSet<IVec3>, rot: &IVec3) -> HashSet<IVec3> {
+    scanner.iter().map(|p| rotate(*p, rot)).collect()
 }
 
+/// Computes the distances between a given beacon and all other beacons in the scanner
+fn beacon_distances(beacon: IVec3, scanner: &HashSet<IVec3>) -> HashSet<IVec3> {
+    scanner.iter().map(|other| beacon - *other).collect()
+}
+
+/// Computes the distances between all beacons in the scanner
 fn scanner_distances(scanner: &HashSet<IVec3>) -> HashMap<IVec3, HashSet<IVec3>> {
     let mut map = HashMap::new();
     for beacon in scanner {
@@ -73,64 +71,96 @@ fn scanner_distances(scanner: &HashSet<IVec3>) -> HashMap<IVec3, HashSet<IVec3>>
     map
 }
 
-fn beacon_distances(beacon: IVec3, scanner: &HashSet<IVec3>) -> HashSet<IVec3> {
-    scanner.iter().map(|other| beacon - *other).collect()
-}
-
+/// Applies the offset to all beacons in a scanner
 fn apply_offset(scanner: &HashSet<IVec3>, offset: IVec3) -> HashSet<IVec3> {
-    let mut set = HashSet::new();
-    for beacon in scanner {
-        set.insert(*beacon - offset);
-    }
-    set
+    scanner.iter().map(|beacon| *beacon - offset).collect()
 }
 
-fn find_beacons(scanners: &Data) -> (Vec<IVec3>, HashSet<IVec3>) {
+fn find_offset(
+    rotated_distances: &HashMap<IVec3, HashSet<IVec3>>,
+    beacons_distances: &HashMap<IVec3, HashSet<IVec3>>,
+) -> Option<IVec3> {
+    for (rotated, rotated_dist) in rotated_distances {
+        for (beacon, beacon_dist) in beacons_distances {
+            if rotated_dist.intersection(beacon_dist).count() >= MIN_MATCHING_BEACONS {
+                return Some(*rotated - *beacon);
+            }
+        }
+    }
+    None
+}
+
+fn find_beacons(scanners: &[HashSet<IVec3>]) -> (Vec<IVec3>, HashSet<IVec3>) {
+    // let start = Instant::now();
     let mut scanner_positions = vec![IVec3::ZERO];
     let mut beacons = HashSet::new();
     for beacon in scanners[0].iter() {
         beacons.insert(*beacon);
     }
+    // Cache the distances between each beacons
     let mut beacons_distances = scanner_distances(&beacons);
+    // println!("initializing beacons: {:?}", start.elapsed());
 
-    let mut unknown_scanners = HashMap::new();
+    // let start = Instant::now();
+    // Keep a map of all the unchecked scanners
+    // We remove a scanner when an offset and rotation is found
+    let mut unchecked_scanners = HashMap::new();
     for (scanner_id, scanner) in scanners.iter().skip(1).enumerate() {
-        unknown_scanners.insert(scanner_id, scanner);
+        // Cache the rotation and the beacon distances of each scanner
+        for rot in ALL_ROTATIONS.iter() {
+            let rotated_scanner = rotate_scanner(scanner, rot);
+            let rotated_distances = scanner_distances(&rotated_scanner);
+            unchecked_scanners
+                .entry(scanner_id)
+                .or_insert(vec![])
+                .push((rotated_scanner, rotated_distances));
+        }
     }
+    // println!("initializing scanners: {:?}", start.elapsed());
 
-    while !unknown_scanners.is_empty() {
-        for (scanner_id, scanner) in unknown_scanners.clone() {
-            'rotation_loop: for rot in ALL_ROTATIONS.iter() {
-                let rotated_scanner = rotate_scanner(scanner, rot);
-                let rotated_distances = scanner_distances(&rotated_scanner);
-                for (rotated, rotated_dist) in &rotated_distances {
-                    for (beacon, beacon_dist) in &beacons_distances {
-                        if rotated_dist.intersection(beacon_dist).count() >= 12 {
-                            let offset = *rotated - *beacon;
-                            scanner_positions.push(-offset);
-                            for b in apply_offset(&rotated_scanner, offset) {
-                                beacons.insert(b);
-                                beacons_distances.insert(b, beacon_distances(b, &beacons));
-                            }
-                            unknown_scanners.remove(&scanner_id);
-                            break 'rotation_loop;
-                        }
+    // let start = Instant::now();
+    while !unchecked_scanners.is_empty() {
+        for (scanner_id, scanner) in unchecked_scanners.clone() {
+            for (rotated_scanner, rotated_distances) in scanner {
+                if let Some(offset) = find_offset(&rotated_distances, &beacons_distances) {
+                    for b in apply_offset(&rotated_scanner, offset) {
+                        beacons.insert(b);
+                        beacons_distances.insert(b, beacon_distances(b, &beacons));
                     }
+                    scanner_positions.push(-offset);
+                    unchecked_scanners.remove(&scanner_id);
+                    break;
                 }
             }
         }
     }
+    // println!("checking scanners: {:?}", start.elapsed());
     (scanner_positions, beacons)
 }
 
-pub fn part_1(scanners: &Data) -> usize {
-    let (_, beacons) = find_beacons(scanners);
+pub fn parse(input: &str) -> Data {
+    let scanners = input
+        .split("\n\n")
+        .map(|scanner| {
+            scanner
+                .lines()
+                .skip(1)
+                .map(|l| l.split(',').flat_map(|val| val.parse()).collect())
+                .map(|v: Vec<i32>| IVec3::new(v[0], v[1], v[2]))
+                .collect()
+        })
+        .collect::<Vec<_>>();
+    find_beacons(&scanners)
+}
+
+pub fn part_1(data: &Data) -> usize {
+    let (_, beacons) = data;
     beacons.len()
 }
 
-pub fn part_2(scanners: &Data) -> usize {
-    let (scanner_positions, _) = find_beacons(scanners);
-    let mut max_dist = i32::MIN;
+pub fn part_2(data: &Data) -> usize {
+    let (scanner_positions, _) = data;
+    let mut max_dist = 0;
     for pos_1 in scanner_positions.clone() {
         for pos_2 in scanner_positions.clone() {
             let dist =

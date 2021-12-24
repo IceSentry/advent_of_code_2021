@@ -68,12 +68,13 @@ fn rotate_scanner(vec: &HashSet<IVec3>, rot: &IVec3) -> HashSet<IVec3> {
 fn scanner_distances(scanner: &HashSet<IVec3>) -> HashMap<IVec3, HashSet<IVec3>> {
     let mut map = HashMap::new();
     for beacon in scanner {
-        map.insert(
-            *beacon,
-            scanner.iter().map(|other| *beacon - *other).collect(),
-        );
+        map.insert(*beacon, beacon_distances(*beacon, scanner));
     }
     map
+}
+
+fn beacon_distances(beacon: IVec3, scanner: &HashSet<IVec3>) -> HashSet<IVec3> {
+    scanner.iter().map(|other| beacon - *other).collect()
 }
 
 fn apply_offset(scanner: &HashSet<IVec3>, offset: IVec3) -> HashSet<IVec3> {
@@ -90,6 +91,7 @@ fn find_beacons(scanners: &Data) -> (Vec<IVec3>, HashSet<IVec3>) {
     for beacon in scanners[0].iter() {
         beacons.insert(*beacon);
     }
+    let mut beacons_distances = scanner_distances(&beacons);
 
     let mut unknown_scanners = HashMap::new();
     for (scanner_id, scanner) in scanners.iter().skip(1).enumerate() {
@@ -97,13 +99,10 @@ fn find_beacons(scanners: &Data) -> (Vec<IVec3>, HashSet<IVec3>) {
     }
 
     while !unknown_scanners.is_empty() {
-        let mut to_remove = vec![];
         for (scanner_id, scanner) in unknown_scanners.clone() {
             'rotation_loop: for rot in ALL_ROTATIONS.iter() {
                 let rotated_scanner = rotate_scanner(scanner, rot);
                 let rotated_distances = scanner_distances(&rotated_scanner);
-                let beacons_distances = scanner_distances(&beacons);
-
                 for (rotated, rotated_dist) in &rotated_distances {
                     for (beacon, beacon_dist) in &beacons_distances {
                         if rotated_dist.intersection(beacon_dist).count() >= 12 {
@@ -111,16 +110,14 @@ fn find_beacons(scanners: &Data) -> (Vec<IVec3>, HashSet<IVec3>) {
                             scanner_positions.push(-offset);
                             for b in apply_offset(&rotated_scanner, offset) {
                                 beacons.insert(b);
+                                beacons_distances.insert(b, beacon_distances(b, &beacons));
                             }
-                            to_remove.push(scanner_id);
+                            unknown_scanners.remove(&scanner_id);
                             break 'rotation_loop;
                         }
                     }
                 }
             }
-        }
-        for id in to_remove {
-            unknown_scanners.remove(&id);
         }
     }
     (scanner_positions, beacons)
@@ -133,9 +130,6 @@ pub fn part_1(scanners: &Data) -> usize {
 
 pub fn part_2(scanners: &Data) -> usize {
     let (scanner_positions, _) = find_beacons(scanners);
-    assert_eq!(scanner_positions.len(), scanners.len());
-    println!("{:?}", scanner_positions);
-
     let mut max_dist = i32::MIN;
     for pos_1 in scanner_positions.clone() {
         for pos_2 in scanner_positions.clone() {
@@ -291,7 +285,7 @@ mod tests {
     "};
 
     #[test]
-    pub fn temp() {
+    pub fn all_rotations() {
         assert_eq!(super::ALL_ROTATIONS.len(), 24);
     }
 

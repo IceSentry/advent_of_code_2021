@@ -18,4 +18,5 @@ aoc_helper::main! {
     day16: parse => part_1, part_2;
     day17: parse => part_1, part_2;
     day18: parse => part_1, part_2;
+    day19: parse => part_1, part_2;
 }

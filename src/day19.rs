@@ -119,7 +119,7 @@ fn find_beacons(scanners: &[HashSet<IVec3>]) -> (Vec<IVec3>, HashSet<IVec3>) {
                         beacons.insert(beacon);
                         beacons_distances.insert(beacon, beacon_distances(beacon, &beacons));
                     }
-                    scanner_positions.push(-offset);
+                    scanner_positions.push(offset);
                     unchecked_scanners.remove(&scanner_id);
                     break;
                 }

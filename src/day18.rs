@@ -14,26 +14,30 @@ impl SnaifishNumber {
         let mut depths = vec![];
 
         let mut depth = 0;
-        let mut number = None;
+        let mut number = String::new();
         let mut chars = str.chars();
         loop {
             match chars.next() {
                 Some('[') => depth += 1,
                 Some(c) if c.is_digit(10) => {
-                    number = number
-                        .map(|value| value * 10 + c.to_digit(10).unwrap() as u16)
-                        .or_else(|| Some(c.to_digit(10).unwrap() as u16));
+                    number = format!("{}{}", number, c);
                 }
                 c => {
-                    if let Some(value) = number {
-                        values.push(value);
-                        number = None;
+                    if !number.is_empty() {
+                        values.push(
+                            number
+                                .parse()
+                                .unwrap_or_else(|_| panic!("failed to parse number {}", number)),
+                        );
+                        number = String::new();
                         depths.push(depth);
                     }
 
                     if let Some(']') = c {
                         depth -= 1;
-                    } else if c.is_none() {
+                    }
+
+                    if c.is_none() {
                         return Self { values, depths };
                     }
                 }

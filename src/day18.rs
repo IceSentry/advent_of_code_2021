@@ -4,8 +4,8 @@ type Data = Vec<SnaifishNumber>;
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
 pub struct SnaifishNumber {
-    values: Vec<usize>,
-    depths: Vec<usize>,
+    values: Vec<u16>,
+    depths: Vec<u8>,
 }
 
 impl SnaifishNumber {
@@ -14,30 +14,26 @@ impl SnaifishNumber {
         let mut depths = vec![];
 
         let mut depth = 0;
-        let mut number = String::new();
+        let mut number = None;
         let mut chars = str.chars();
         loop {
             match chars.next() {
                 Some('[') => depth += 1,
                 Some(c) if c.is_digit(10) => {
-                    number = format!("{}{}", number, c);
+                    number = number
+                        .map(|value| value * 10 + c.to_digit(10).unwrap() as u16)
+                        .or_else(|| Some(c.to_digit(10).unwrap() as u16));
                 }
                 c => {
-                    if !number.is_empty() {
-                        values.push(
-                            number
-                                .parse()
-                                .unwrap_or_else(|_| panic!("failed to parse number {}", number)),
-                        );
-                        number = String::new();
+                    if let Some(value) = number {
+                        values.push(value);
+                        number = None;
                         depths.push(depth);
                     }
 
                     if let Some(']') = c {
                         depth -= 1;
-                    }
-
-                    if c.is_none() {
+                    } else if c.is_none() {
                         return Self { values, depths };
                     }
                 }
@@ -96,8 +92,8 @@ impl SnaifishNumber {
 
             let value = self.values[i] as f32;
             self.values.remove(i);
-            self.values.insert(i, (value / 2.).floor() as usize);
-            self.values.insert(i + 1, (value / 2.).ceil() as usize);
+            self.values.insert(i, (value / 2.).floor() as u16);
+            self.values.insert(i + 1, (value / 2.).ceil() as u16);
 
             self.depths[i] += 1;
             self.depths.insert(i + 1, self.depths[i]);
@@ -106,7 +102,7 @@ impl SnaifishNumber {
         false
     }
 
-    fn magnitude(&self) -> usize {
+    fn magnitude(&self) -> u16 {
         let mut values = self.values.clone();
         let mut depths = self.depths.clone();
         while values.len() > 1 {
@@ -199,7 +195,7 @@ pub fn parse(input: &str) -> Data {
     input.lines().map(SnaifishNumber::parse).collect()
 }
 
-pub fn part_1(input: &Data) -> usize {
+pub fn part_1(input: &Data) -> u16 {
     let mut result = input.first().unwrap().clone();
     for tree in input.iter().skip(1) {
         result = result.add(tree.clone());
@@ -208,7 +204,7 @@ pub fn part_1(input: &Data) -> usize {
     result.magnitude()
 }
 
-pub fn part_2(input: &Data) -> usize {
+pub fn part_2(input: &Data) -> u16 {
     let mut max = 0;
     for a in input.iter() {
         for b in input.iter() {
@@ -243,7 +239,7 @@ mod tests {
 
     #[test]
     pub fn parse() {
-        let assert_parse = |input, expected_values: Vec<usize>, expected_depths: Vec<usize>| {
+        let assert_parse = |input, expected_values: Vec<u16>, expected_depths: Vec<u8>| {
             let tree = SnaifishNumber::parse(input);
             assert_eq!(tree.values, expected_values);
             assert_eq!(tree.depths, expected_depths);

@@ -1,5 +1,3 @@
-use itertools::Itertools;
-
 type Data = Vec<i32>;
 
 pub fn parse(input: &str) -> Data {
@@ -7,47 +5,15 @@ pub fn parse(input: &str) -> Data {
 }
 
 pub fn part_1(input: &Data) -> usize {
-    let mut count = 0;
-    for values in input.windows(2) {
-        if values[0] < values[1] {
-            count += 1;
-        }
-    }
-    count
-}
-
-pub fn part_1_iterator(input: &Data) -> usize {
     input
         .windows(2)
         .filter(|values| values[0] < values[1])
         .count()
 }
 
-pub fn part_2(input: &Data) -> usize {
-    let mut last = i32::MAX;
-    let mut count = 0;
-    for values in input.windows(3) {
-        let sum = values.iter().sum();
-        if sum > last {
-            count += 1;
-        }
-        last = sum;
-    }
-    count
-}
-
-pub fn part_2_iterator(input: &Data) -> usize {
-    input
-        .windows(3)
-        .map(|x| x.iter().sum::<i32>())
-        .tuple_windows()
-        .filter(|(a, b)| b > a)
-        .count()
-}
-
 // (b + c) can be simplified
 // a + (b + c) < (b + c) + d
-pub fn part_2_iterator_2(input: &Data) -> usize {
+pub fn part_2(input: &Data) -> usize {
     input
         .windows(4)
         .filter(|values| values[0] < values[3])

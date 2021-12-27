@@ -48,7 +48,7 @@ fn fold(dots: &mut HashSet<(usize, usize)>, fold: Fold) {
     }
 }
 
-fn print_output(dots: &HashSet<(usize, usize)>) {
+fn _print_output(dots: &HashSet<(usize, usize)>) {
     let letter_height = 6;
     let letter_width = 4;
     let mut message_width = 8 * letter_width;
@@ -78,9 +78,7 @@ pub fn part_2(input: &Data) -> usize {
     for f in folds {
         fold(&mut dots, f);
     }
-
-    print_output(&dots);
-
+    // print_output(&dots);
     dots.len()
 }
 

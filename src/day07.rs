@@ -12,17 +12,6 @@ pub fn parse(input: &str) -> Data {
 }
 
 pub fn part_1(input: &Data) -> usize {
-    let max = input.iter().max().unwrap();
-    let mut vec = vec![0; *max as usize];
-    for i in 0..*max {
-        for crab in input {
-            vec[i as usize] += (*crab - i).abs();
-        }
-    }
-    *vec.iter().min().unwrap() as usize
-}
-
-pub fn part_1_median(input: &Data) -> usize {
     let mut input = input.clone();
     input.sort_unstable();
     let median = input[(input.len() / 2) as usize];
@@ -34,19 +23,6 @@ pub fn part_1_median(input: &Data) -> usize {
 }
 
 pub fn part_2(input: &Data) -> usize {
-    let max = input.iter().max().unwrap();
-    let mut vec = vec![0; *max as usize];
-    for i in 0..*max {
-        for crab in input {
-            let dist = *crab - i;
-            let fuel = (dist.pow(2) + dist.abs()) / 2;
-            vec[i as usize] += fuel;
-        }
-    }
-    *vec.iter().min().unwrap() as usize
-}
-
-pub fn part_2_mean(input: &Data) -> usize {
     let mean = input.iter().sum::<isize>() as f32 / input.len() as f32;
     let fuel = |dist: isize| (dist.pow(2) + dist) / 2;
 

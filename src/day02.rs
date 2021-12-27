@@ -31,19 +31,6 @@ pub fn part_1(input: &Data) -> i32 {
     horizontal * depth
 }
 
-pub fn part_1_iterator(input: &Data) -> i32 {
-    let (horizontal, depth) =
-        input.iter().fold(
-            (0, 0),
-            |(horizontal, depth), (command, value)| match command {
-                Commands::Forward => (horizontal + value, depth),
-                Commands::Down => (horizontal, depth + value),
-                Commands::Up => (horizontal, depth - value),
-            },
-        );
-    horizontal * depth
-}
-
 pub fn part_2(input: &Data) -> i32 {
     let mut horizontal = 0;
     let mut depth = 0;
@@ -58,18 +45,6 @@ pub fn part_2(input: &Data) -> i32 {
             Commands::Up => aim -= value,
         }
     }
-    horizontal * depth
-}
-
-pub fn part_2_iterator(input: &Data) -> i32 {
-    let (horizontal, depth, _aim) = input.iter().fold(
-        (0, 0, 0),
-        |(horizontal, depth, aim), (command, value)| match command {
-            Commands::Forward => (horizontal + value, depth + aim * value, aim),
-            Commands::Down => (horizontal, depth, aim + value),
-            Commands::Up => (horizontal, depth, aim - value),
-        },
-    );
     horizontal * depth
 }
 
@@ -91,16 +66,12 @@ mod tests {
         let input = super::parse(INPUTS);
         let result = super::part_1(&input);
         assert_eq!(result, 150);
-        let result = super::part_1_iterator(&input);
-        assert_eq!(result, 150);
     }
 
     #[test]
     pub fn part_2() {
         let input = super::parse(INPUTS);
         let result = super::part_2(&input);
-        assert_eq!(result, 900);
-        let result = super::part_2_iterator(&input);
         assert_eq!(result, 900);
     }
 }
